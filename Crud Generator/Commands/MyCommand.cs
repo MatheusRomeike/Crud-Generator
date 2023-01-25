@@ -67,18 +67,21 @@ namespace Crud_Generator
 
             string domainFolder = Path.Combine(diretorioRaiz, "Sisand.Vision.Domain");
             string domainClassFolder = Path.Combine(domainFolder, classFolder);
+
             string dataFolder = Path.Combine(diretorioRaiz, "Sisand.Vision.Data");
-            string dataConfigurationFolder = Path.Combine(dataFolder, "Configuration");
+            string dataConfigurationFolder = Path.Combine(dataFolder, "Configurations");
             string dataRepositoriesFolder = Path.Combine(dataFolder, "Repositories");
+
             string applicationFolder = Path.Combine(diretorioRaiz, "Sisand.Vision.Application");
-            string applicationContractsFolder = Path.Combine(applicationFolder, "Contracts/Services");
+            string applicationContractsFolder = Path.Combine(applicationFolder, "Contracts");
             string applicationServicesFolder = Path.Combine(applicationFolder, "Services");
+
             string controllerFolder = Path.Combine(diretorioRaiz, "Sisand.Vision.Api");
             string controllerControllersFolder = Path.Combine(controllerFolder, "Controllers");
             #endregion
 
             #region Criar IRepository
-            
+
             string repositoryInterfaceClassFolder = Path.Combine(domainClassFolder, "Contracts");
             Directory.CreateDirectory(repositoryInterfaceClassFolder);
 
@@ -87,10 +90,10 @@ namespace Crud_Generator
             {
                 File.Create(repositoryInterfaceFile).Dispose();
 
-                string repositoryInterfaceContent = 
+                string repositoryInterfaceContent =
                     "using Sisand.Vision.Domain.Core.Contracts.Repositories;\n" +
                     "\n" +
-                    "namespace Sisand.Vision.Domain." + className + ".Contracts\n" +
+                    "namespace Sisand.Vision.Domain." + classFolder + ".Contracts\n" +
                     "{\n" +
                     "\tpublic interface I" + className + "Repository : IBaseRepository<" + className + ">\n" +
                     "\t{\n" +
@@ -110,10 +113,9 @@ namespace Crud_Generator
                 File.Create(repositoryFile).Dispose();
 
                 string repositoryContent =
-                    "using Domain.Domain.Core.Contracts;\n" +
                     "using Microsoft.EntityFrameworkCore;\n" +
                     "using Sisand.Vision.Data.DataContext;\n" +
-                    "using Sisand.Vision.Domain.NegociacaoVenda.Contracts;" +
+                    "using Sisand.Vision.Domain." + classFolder + ".Contracts;" +
                     "\n" +
                     "namespace Sisand.Vision.Data.Repositories." + classFolder + "\n" +
                     "{\n" +
@@ -137,14 +139,38 @@ namespace Crud_Generator
                     "\t\t#region Metodos\n" +
                     "\n" +
                     "\t\t#endregion\n" +
-                    "\t}" +
+                    "\t}\n" +
                     "}\n";
                 File.WriteAllText(repositoryFile, repositoryContent);
             }
             #endregion
 
+            #region Criar Validator
+            string validatorsClassFolder = Path.Combine(domainClassFolder, "Validators");
+            Directory.CreateDirectory(validatorsClassFolder);
+
+            string validatorFile = Path.Combine(validatorsClassFolder, className + "Validator.cs");
+            if (!File.Exists(validatorFile))
+            {
+                File.Create(validatorFile).Dispose();
+
+                string validatorContent =
+                    "using FluentValidation;\n" +
+                    "namespace Sisand.Vision.Domain." + classFolder + ".Validators\n" +
+                    "{\n" +
+                    "\tpublic class " + className + "Validator : AbstractValidator<" + className + ">\n" +
+                    "\t{\n" +
+                    "\t\tpublic " + className + "Validator()\n" +
+                    "\t\t{\n" +
+                    "\t\t}\n" +
+                    "\t}\n" +
+                    "}";
+                File.WriteAllText(validatorFile, validatorContent);
+            }
+                #endregion
+
             #region Criar Configuration
-            string configurationFile = Path.Combine(dataConfigurationFolder, className + "Configuration.cs");
+                string configurationFile = Path.Combine(dataConfigurationFolder, className + "Configuration.cs");
             if (!File.Exists(configurationFile))
             {
                 File.Create(configurationFile).Dispose();
@@ -169,7 +195,7 @@ namespace Crud_Generator
                     configurationContent +=
                     "\n\t\t\tbuilder.Property(x => x." + attribute.Name + ")\n" +
                     "\t\t\t\t.HasColumnName(\"PREENCHA\")";
-                    if (attribute.Type.Contains("?"))
+                    if (!attribute.Type.Contains("?") && !attribute.Type.Contains("string") && !attribute.Type.Contains("List") && !attribute.Type.Contains("IEnumerable"))
                     {
                         configurationContent += "\n\t\t\t\t.IsRequired()";
                     }
@@ -207,19 +233,19 @@ namespace Crud_Generator
                     "\t\t/// Método responsável por adicionar uma entidade do tipo " + className + "\n" +
                     "\t\t/// </summary>\n" +
                     "\t\t/// <param name=\"entity\"></param>\n" +
-                    "\t\tvoid Add(" + className + " entity);\n" +
+                    "\t\tbool Add(" + className + " entity);\n" +
                     "\n" +
                     "\t\t/// <summary>\n" +
                     "\t\t/// Método responsável por atualizar uma entidade do tipo " + className + "\n" +
                     "\t\t/// </summary>\n" +
                     "\t\t/// <param name=\"entity\"></param>\n" +
-                    "\t\tvoid Update(" + className + " entity);\n" +
+                    "\t\tbool Update(" + className + " entity);\n" +
                     "\n" +
                     "\t\t/// <summary>\n" +
                     "\t\t/// Método responsável por remover uma entidade do tipo " + className + "\n" +
                     "\t\t/// </summary>\n" +
                     "\t\t/// <param name=\"entity\"></param>\n" +
-                    "\t\tvoid Delete(" + className + " entity);\n" +
+                    "\t\tbool Delete(" + className + " entity);\n" +
                     "\n" +
                     "\t}\n" +
                     "}";
@@ -259,19 +285,25 @@ namespace Crud_Generator
                     "\t\t#endregion\n" +
                     "\n" +
                     "\t\t#region Metodos\n" +
-                    "\t\tpublic void Add(" + className + " entity)\n" +
+                    "\t\tpublic bool Add(" + className + " entity)\n" +
                     "\t\t{\n" +
                     "\t\t\t_" + classNameFormatada + "Repository.Add(entity);\n" +
+                    "\t\t\t_unitOfWork.EFCommit();\n" +
+                    "\t\t\treturn true;\n" +
                     "\t\t}\n" +
                     "\n" +
-                    "\t\tpublic void Update(" + className + " entity)\n" +
+                    "\t\tpublic bool Update(" + className + " entity)\n" +
                     "\t\t{\n" +
                     "\t\t\t_" + classNameFormatada + "Repository.Update(entity);\n" +
+                    "\t\t\t_unitOfWork.EFCommit();\n" +
+                    "\t\t\treturn true;\n" +
                     "\t\t}\n" +
                     "\n" +
-                    "\t\tpublic void Delete(" + className + " entity)\n" +
+                    "\t\tpublic bool Delete(" + className + " entity)\n" +
                     "\t\t{\n" +
                     "\t\t\t_" + classNameFormatada + "Repository.Delete(entity);\n" +
+                    "\t\t\t_unitOfWork.EFCommit();\n" +
+                    "\t\t\treturn true;\n" +
                     "\t\t}\n" +
                     "\t\t#endregion\n" +
                     "\t}\n" +
@@ -289,8 +321,11 @@ namespace Crud_Generator
                 string controllerContent =
                     "using Microsoft.AspNetCore.Authorization;\n" +
                     "using Microsoft.AspNetCore.Mvc;\n" +
-                    "using Sisand.Vision.Application.Contracts.Services." + className + ";\n" +
+                    "using Sisand.Vision.Api.Utils;\n" +
+                    "using Sisand.Vision.Application.Contracts.Services." + classFolder + ";\n" +
                     "using Sisand.Vision.Domain." + classFolder + ";\n" +
+                    "using System;\n" +
+                    "using System.Threading.Tasks;\n" +
                     "\nnamespace Sisand.Vision.Api.Controllers\n" +
                     "{\n" +
                     "\t[Route(\"api/[controller]\")]\n" +
@@ -317,7 +352,7 @@ namespace Crud_Generator
                     "\t\t/// <param name=\"entity\"></param>\n" +
                     "\t\t/// <returns></returns>\n" +
                     "\t\t[HttpPost(\"Add\")]\n" +
-                    "\t\t[ProducesResponseType(typeof(RetornoPadrao<dynamic>), 200)]\n" +
+                    "\t\t[ProducesResponseType(typeof(RetornoPadrao<bool>), 200)]\n" +
                     "\t\t[ProducesResponseType(typeof(Exception), 400)]\n" +
                     "\t\t[ProducesResponseType(500)]\n" +
                     "\t\tpublic Task<IActionResult> Add([FromBody] " + className + " entity)\n" +
@@ -326,7 +361,7 @@ namespace Crud_Generator
                     "\t\t\t{\n" +
                     "\t\t\t\ttry\n" +
                     "\t\t\t\t{\n" +
-                    "\t\t\t\t\treturn Ok(new RetornoPadrao<dynamic>(EStatusRetorno.Ok, _vendaPerdidaService.Add(entity)));\n" +
+                    "\t\t\t\t\treturn Ok(new RetornoPadrao<bool>(EStatusRetorno.Ok, _" + classNameFormatada + "Service.Add(entity)));\n" +
                     "\t\t\t\t}\n" +
                     "\t\t\t\tcatch (Exception e)\n" +
                     "\t\t\t\t{\n" +
@@ -343,7 +378,7 @@ namespace Crud_Generator
                     "\t\t/// <param name=\"entity\"></param>\n" +
                     "\t\t/// <returns></returns>\n" +
                     "\t\t[HttpPost(\"Update\")]\n" +
-                    "\t\t[ProducesResponseType(typeof(RetornoPadrao<dynamic>), 200)]\n" +
+                    "\t\t[ProducesResponseType(typeof(RetornoPadrao<bool>), 200)]\n" +
                     "\t\t[ProducesResponseType(typeof(Exception), 400)]\n" +
                     "\t\t[ProducesResponseType(500)]\n" +
                     "\t\tpublic Task<IActionResult> Update([FromBody] " + className + " entity)\n" +
@@ -352,7 +387,7 @@ namespace Crud_Generator
                     "\t\t\t{\n" +
                     "\t\t\t\ttry\n" +
                     "\t\t\t\t{\n" +
-                    "\t\t\t\t\treturn Ok(new RetornoPadrao<dynamic>(EStatusRetorno.Ok, _vendaPerdidaService.Update(entity)));\n" +
+                    "\t\t\t\t\treturn Ok(new RetornoPadrao<bool>(EStatusRetorno.Ok, _" + classNameFormatada + "Service.Update(entity)));\n" +
                     "\t\t\t\t}\n" +
                     "\t\t\t\tcatch (Exception e)\n" +
                     "\t\t\t\t{\n" +
@@ -369,7 +404,7 @@ namespace Crud_Generator
                     "\t\t/// <param name=\"entity\"></param>\n" +
                     "\t\t/// <returns></returns>\n" +
                     "\t\t[HttpPost(\"Delete\")]\n" +
-                    "\t\t[ProducesResponseType(typeof(RetornoPadrao<dynamic>), 200)]\n" +
+                    "\t\t[ProducesResponseType(typeof(RetornoPadrao<bool>), 200)]\n" +
                     "\t\t[ProducesResponseType(typeof(Exception), 400)]\n" +
                     "\t\t[ProducesResponseType(500)]\n" +
                     "\t\tpublic Task<IActionResult> Delete([FromBody] " + className + " entity)\n" +
@@ -378,7 +413,7 @@ namespace Crud_Generator
                     "\t\t\t{\n" +
                     "\t\t\t\ttry\n" +
                     "\t\t\t\t{\n" +
-                    "\t\t\t\t\treturn Ok(new RetornoPadrao<dynamic>(EStatusRetorno.Ok, _vendaPerdidaService.Delete(entity)));\n" +
+                    "\t\t\t\t\treturn Ok(new RetornoPadrao<bool>(EStatusRetorno.Ok, _" + classNameFormatada + "Service.Delete(entity)));\n" +
                     "\t\t\t\t}\n" +
                     "\t\t\t\tcatch (Exception e)\n" +
                     "\t\t\t\t{\n" +
