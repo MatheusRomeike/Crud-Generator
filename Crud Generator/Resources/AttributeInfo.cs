@@ -10,5 +10,6 @@ namespace Crud_Generator.Resources
     {
         public string Name { get; set; }
         public string Type { get; set; }
+        public bool Nullable { get; set; }
     }
 }

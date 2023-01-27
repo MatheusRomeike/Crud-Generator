@@ -1,12 +1,12 @@
 ﻿using Crud_Generator.Resources;
 using EnvDTE;
-using EnvDTE80;
 using Microsoft;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.TextManager.Interop;
+using Microsoft.VisualStudio.OLE.Interop;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
-using System.Linq;
+using System.Text.RegularExpressions;
+using System.Windows.Forms;
 
 namespace Crud_Generator
 {
@@ -22,24 +22,65 @@ namespace Crud_Generator
             var activeDoc = dte.ActiveDocument;
             var selection = activeDoc.Selection as TextSelection;
             var codeClass = selection.ActivePoint.CodeElement[vsCMElement.vsCMElementClass] as CodeClass;
-            #endregion
 
-            #region Juntar atributos
-            var listAttributes = new List<AttributeInfo>();
+            RichTextBox richTextBox = new RichTextBox();
+            richTextBox.Dock = DockStyle.Fill;
+            Form form = new Form();
+            form.Text = "Insira o script do modelo.";
+            form.Size = new Size(500, 500);
 
-            foreach (CodeElement elem in codeClass.Children)
+
+            Panel panel = new Panel();
+            panel.Dock = DockStyle.Bottom;
+            panel.Height = 25;
+            form.Controls.Add(panel);
+
+            Button btnConfirmar = new Button();
+            btnConfirmar.Text = "Confirmar";
+            btnConfirmar.DialogResult = DialogResult.OK;
+            btnConfirmar.Width = 75;
+            btnConfirmar.Left = form.Width - btnConfirmar.Width - 15;
+            panel.Controls.Add(btnConfirmar);
+
+            Button btnCancelar = new Button();
+            btnCancelar.Text = "Cancelar";
+            btnCancelar.Width = 75;
+            btnCancelar.Left = btnConfirmar.Left - 30 - btnCancelar.Width;
+            btnCancelar.DialogResult = DialogResult.Cancel;
+            panel.Controls.Add(btnCancelar);
+
+
+            form.Controls.Add(richTextBox);
+
+            string input = "";
+
+            if (form.ShowDialog() == DialogResult.OK)
             {
-                if (elem.Kind == vsCMElement.vsCMElementProperty)
-                {
-                    CodeProperty property = (CodeProperty)elem;
-                    var atributo = new AttributeInfo()
-                    {
-                        Name = property.Name,
-                        Type = property.Type.AsString
-                    };
-                    listAttributes.Add(atributo);
-                };
+                input = richTextBox.Text;
+            } else
+            {
+                return;
             }
+
+            Regex regexAtributos = new Regex(@"([A-Z_]+) +([A-Z_]+) *(not null)*");
+            MatchCollection matches = regexAtributos.Matches(input);
+
+            List<AttributeInfo> listaAtributos = new List<AttributeInfo>();
+
+            foreach (Match match in matches)
+            {
+                AttributeInfo atributo = new AttributeInfo()
+                {
+                    Name = match.Groups[1].Value,
+                    Type = match.Groups[2].Value,
+                    Nullable = match.Groups[3].Value != "not null"
+                };
+                listaAtributos.Add(atributo);
+            };
+
+            return;
+
+
             #endregion
 
             #region Pegar dados locais
@@ -55,15 +96,6 @@ namespace Crud_Generator
             }
 
             string classNameFormatada = char.ToLower(className[0]) + className.Substring(1);
-
-            //string domainFolder = Path.Combine(diretorioRaiz, "Domain");
-            //string domainFolder2 = Path.Combine(domainFolder, "Domain");
-            //string domainClassFolder = Path.Combine(domainFolder2, classFolder);
-            //string dataFolder = Path.Combine(diretorioRaiz, "Data");
-            //string dataRepositoriesFolder = Path.Combine(dataFolder, "Repository");
-            //string applicationFolder = Path.Combine(diretorioRaiz, "Application");
-            //string applicationContractsFolder = Path.Combine(applicationFolder, "Interfaces");
-            //string controllerFolder = Path.Combine(diretorioRaiz, "Api");
 
             string domainFolder = Path.Combine(diretorioRaiz, "Sisand.Vision.Domain");
             string domainClassFolder = Path.Combine(domainFolder, classFolder);
@@ -167,10 +199,10 @@ namespace Crud_Generator
                     "}";
                 File.WriteAllText(validatorFile, validatorContent);
             }
-                #endregion
+            #endregion
 
             #region Criar Configuration
-                string configurationFile = Path.Combine(dataConfigurationFolder, className + "Configuration.cs");
+            string configurationFile = Path.Combine(dataConfigurationFolder, className + "Configuration.cs");
             if (!File.Exists(configurationFile))
             {
                 File.Create(configurationFile).Dispose();
@@ -190,6 +222,7 @@ namespace Crud_Generator
                     "\t\t\tbuilder.ToTable(\"PREENCHA\");\n" +
                     "\n" +
                     "\t\t\tbuilder.HasKey(\"PREENCHA\"); \n";
+                /*
                 foreach (var attribute in listAttributes)
                 {
                     configurationContent +=
@@ -205,6 +238,7 @@ namespace Crud_Generator
                     }
                     configurationContent += ";\n";
                 };
+                */
                 configurationContent +=
                 "\t\t}\n" +
                 "\t}\n" +

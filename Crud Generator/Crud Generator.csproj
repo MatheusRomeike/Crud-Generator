@@ -79,6 +79,7 @@
     </VSCTCompile>
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="System" />
     <Reference Include="System.Design" />
     <Reference Include="System.ComponentModel.Composition" />
