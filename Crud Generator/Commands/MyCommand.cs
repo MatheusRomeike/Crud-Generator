@@ -1,10 +1,13 @@
 ﻿using Crud_Generator.Resources;
+using Crud_Generator.Resources.Enum;
 using EnvDTE;
 using Microsoft;
+using Microsoft.VisualBasic;
 using Microsoft.VisualStudio.OLE.Interop;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
@@ -16,6 +19,8 @@ namespace Crud_Generator
         protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
         {
             #region Pegar atributos
+
+            #region Dados locais
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             DTE dte = (DTE)ServiceProvider.GlobalProvider.GetService(typeof(DTE));
             Assumes.Present(dte);
@@ -23,6 +28,15 @@ namespace Crud_Generator
             var selection = activeDoc.Selection as TextSelection;
             var codeClass = selection.ActivePoint.CodeElement[vsCMElement.vsCMElementClass] as CodeClass;
 
+            string className = codeClass?.Name;
+
+            if (className == null)
+            {
+                return;
+            }
+            #endregion
+
+            #region Input
             RichTextBox richTextBox = new RichTextBox();
             richTextBox.Dock = DockStyle.Fill;
             Form form = new Form();
@@ -57,29 +71,134 @@ namespace Crud_Generator
             if (form.ShowDialog() == DialogResult.OK)
             {
                 input = richTextBox.Text;
-            } else
+            }
+            else
             {
                 return;
             }
+            #endregion
 
+            #region Atributos
             Regex regexAtributos = new Regex(@"([A-Z_]+) +([A-Z_]+) *(not null)*");
-            MatchCollection matches = regexAtributos.Matches(input);
+            MatchCollection matchesAtributos = regexAtributos.Matches(input);
 
-            List<AttributeInfo> listaAtributos = new List<AttributeInfo>();
-
-            foreach (Match match in matches)
+            List<AttributeInfo> listaAtributos = new List<AttributeInfo>
             {
+                new AttributeInfo()
+                {
+                    Name = "MarcaId",
+                    SqlName = "IDMARCA",
+                    Type = "CHAVE_SMALLINT",
+                    Nullable = false
+                },
+                new AttributeInfo()
+                {
+                    Name = "TipoSegmento",
+                    SqlName = "TPSEGMENTO",
+                    Type = "CHAVE_SMALLINT",
+                    Nullable = false
+                },
+                new AttributeInfo()
+                {
+                    Name = "SequenciaConfiguracaoSnapOn",
+                    SqlName = "SQCONFIGURACAOSNAPON",
+                    Type = "CHAVE_SMALLINT",
+                    Nullable = false
+                },
+                new AttributeInfo()
+                {
+                    Name = "TipoItem",
+                    SqlName = "TPITEM",
+                    Type = "CAMPO_SMALLINT",
+                    Nullable = false
+                },
+                new AttributeInfo()
+                {
+                    Name = "CentroResultadoId",
+                    SqlName = "CDCENTRORESULTADO",
+                    Type = "CAMPO_SMALLINT",
+                    Nullable = true
+                }
+            };
+
+            /*
+            foreach (Match match in matchesAtributos)
+            {
+                string nomeAtributo = Interaction.InputBox("Digite o nome do atributo " + match.Groups[1].Value + ":", "Mapear atributos", "");
+                if (string.IsNullOrEmpty(nomeAtributo))
+                    return;
+
                 AttributeInfo atributo = new AttributeInfo()
                 {
-                    Name = match.Groups[1].Value,
+                    Name = nomeAtributo,
+                    SqlName = match.Groups[1].Value,
                     Type = match.Groups[2].Value,
                     Nullable = match.Groups[3].Value != "not null"
                 };
                 listaAtributos.Add(atributo);
             };
+            */
+            #endregion
+
+            #region Primary key
+            Regex regexPrimaryKey = new Regex(@"primary key \(([A-Z_]+(?:, [A-Z_]+)*)\)");
+            Match matchPrimaryKey = regexPrimaryKey.Match(input);
+            var primaryKeys = matchPrimaryKey.Groups[1].Value.Split(',');
+            string primaryKeysString = "";
+            foreach (var primaryKey in primaryKeys)
+            {
+                AttributeInfo atributo = listaAtributos.FirstOrDefault(a => a.SqlName == primaryKey.Trim());
+                if (atributo != null)
+                {
+                    atributo.PrimaryKey = true;
+                    if (primaryKeysString == "")
+                    {
+                        primaryKeysString += "x." + atributo.Name;
+                    }
+                    else
+                    {
+                        primaryKeysString += ", x." + atributo.Name;
+                    }
+                }
+            }
+            #endregion
+
+            #region Foreign key
+            Regex regexForeignKey = new Regex(@"foreign key\s*\(\s*(.+?)\s*\)\s*references\s*([A-Z_]+)\s*\(\s*(.+?)\s*\)");
+            MatchCollection matchesForeignKey = regexForeignKey.Matches(input);
+
+            foreach (Match match in matchesForeignKey)
+            {
+                ForeignType cardinalidade = (ForeignType)Convert.ToInt32(Interaction.InputBox("Digite a cardinalidade de " + match.Groups[1].Value + " na tabela " + match.Groups[2].Value + " com chave estrangeira: \n" +
+                    "0 = Um pra um \n" +
+                    "1 = Um pra muitos \n" +
+                    "2 = Muitos pra um \n" +
+                    "3 = Muitos pra muitos", "Mapear cardinalidade", ""));
+
+                string nomeRelacionamento = Interaction.InputBox("Informe o nome da classe para relacionamento entre " + className + " e " + match.Groups[2].Value + ":", "Mapear relacionamento", "");
+                if (string.IsNullOrEmpty(nomeRelacionamento))
+                    return;
+
+                ForeignKey foreignKey = new ForeignKey()
+                {
+                    ReferencesRelationName = nomeRelacionamento,
+                    ReferencesSqlName = match.Groups[1].Value,
+                    ForeignType = cardinalidade,
+                };
+
+                AttributeInfo atributo = listaAtributos.FirstOrDefault(a => a.SqlName.Contains(match.Groups[1].Value));
+                if (atributo != null)
+                    atributo.ForeignKey = foreignKey;
+            }
+            #endregion
+
+            #region Table name
+            Regex regexTableName = new Regex(@"create table ([A-Z]*)");
+            Match matchTableName = regexTableName.Match(input);
+            string tableName = matchTableName.Groups[1].Value;
+            #endregion
 
             return;
-
 
             #endregion
 
@@ -88,12 +207,6 @@ namespace Crud_Generator
             string diretorioChamada = Path.GetDirectoryName(fullPath);
             string diretorioRaiz = Directory.GetCurrentDirectory();
             string classFolder = Path.GetFileName(diretorioChamada);
-            string className = codeClass?.Name;
-
-            if (className == null)
-            {
-                return;
-            }
 
             string classNameFormatada = char.ToLower(className[0]) + className.Substring(1);
 
@@ -208,26 +321,33 @@ namespace Crud_Generator
                 File.Create(configurationFile).Dispose();
 
                 string configurationContent =
-                    "using Microsoft.EntityFrameworkCore;\n" +
-                    "using Microsoft.EntityFrameworkCore.Metadata.Builders;\n" +
-                    "using Microsoft.EntityFrameworkCore.Storage.ValueConversion;\n" +
-                    "using Sisand.Vision.Domain." + classFolder + ";\n" + //falta mexer nisso
-                    "\n" +
-                    "namespace Sisand.Vision.Data.Configurations\n" +
-                    "{\n" +
-                    "\tpublic class " + className + "Configuration : IEntityTypeConfiguration<" + className + ">\n" +
-                    "\t{\n" +
-                    "\t\tpublic void Configure(EntityTypeBuilder<" + className + "> builder)\n" +
-                    "\t\t{\n" +
-                    "\t\t\tbuilder.ToTable(\"PREENCHA\");\n" +
-                    "\n" +
-                    "\t\t\tbuilder.HasKey(\"PREENCHA\"); \n";
-                /*
-                foreach (var attribute in listAttributes)
+                "using Microsoft.EntityFrameworkCore;\n" +
+                "using Microsoft.EntityFrameworkCore.Metadata.Builders;\n" +
+                "using Microsoft.EntityFrameworkCore.Storage.ValueConversion;\n" +
+                "using Sisand.Vision.Domain." + classFolder + ";\n" + //falta mexer nisso
+                "\n" +
+                "namespace Sisand.Vision.Data.Configurations\n" +
+                "{\n" +
+                "\tpublic class " + className + "Configuration : IEntityTypeConfiguration<" + className + ">\n" +
+                "\t{\n" +
+                "\t\tpublic void Configure(EntityTypeBuilder<" + className + "> builder)\n" +
+                "\t\t{\n" +
+                "\t\t\tbuilder.ToTable(" + tableName + ");\n" +
+                "\n";
+                if (primaryKeys.Count() > 1)
+                {
+                    configurationContent += "\t\t\tbuilder.HasKey(x => " + primaryKeysString + "); \n";
+                }
+                else
+                {
+                    configurationContent += "\t\t\tbuilder.HasKey(x => new { " + primaryKeysString + " }); \n";
+                }
+
+                foreach (var attribute in listaAtributos)
                 {
                     configurationContent +=
                     "\n\t\t\tbuilder.Property(x => x." + attribute.Name + ")\n" +
-                    "\t\t\t\t.HasColumnName(\"PREENCHA\")";
+                    "\t\t\t\t.HasColumnName(\"" + attribute.SqlName + "\")";
                     if (!attribute.Type.Contains("?") && !attribute.Type.Contains("string") && !attribute.Type.Contains("List") && !attribute.Type.Contains("IEnumerable"))
                     {
                         configurationContent += "\n\t\t\t\t.IsRequired()";
@@ -237,8 +357,31 @@ namespace Crud_Generator
                         configurationContent += "\n\t\t\t\t.HasConversion(new BoolToZeroOneConverter<int>())";
                     }
                     configurationContent += ";\n";
-                };
-                */
+                }
+
+                foreach (var attribute in listaAtributos.Where(predicate: p => p.ForeignKey != null))
+                {
+                    if (attribute.ForeignKey.ForeignType == Resources.Enum.ForeignType.UmPraUm)
+                        configurationContent += "\t\t\t\tbuilder.HasOne(p => p." + attribute.ForeignKey.ReferencesRelationName + ") \n" +
+                            "\t\t\t\t\t.WithOne(b => b." + className + ")\n";
+                    else if (attribute.ForeignKey.ForeignType == Resources.Enum.ForeignType.UmPraMuitos)
+                        configurationContent += "\t\t\t\tbuilder.HasOne(p => p." + attribute.ForeignKey.ReferencesRelationName + ") \n" +
+                            "\t\t\t\t\t.WithMany(b => b." + className + ")\n";
+                    else if (attribute.ForeignKey.ForeignType == Resources.Enum.ForeignType.MuitosPraUm)
+                        configurationContent += "\t\t\t\tbuilder.HasMany(p => p." + attribute.ForeignKey.ReferencesRelationName + ") \n" +
+                            "\t\t\t\t\t.WithOne(b => b." + className + ")\n";
+                    else if (attribute.ForeignKey.ForeignType == Resources.Enum.ForeignType.UmPraMuitos)
+                        configurationContent += "\t\t\t\tbuilder.HasMany(p => p." + attribute.ForeignKey.ReferencesRelationName + ") \n" +
+                            "\t\t\t\t\t.WithMany(b => b." + className + ")\n";
+                    configurationContent += "\t\t\t\t\t.HasForeignKey(p =>";
+                    var foreingKeys = attribute.ForeignKey.ReferencesSqlName.Split(',');
+                    foreach (var foreingKey in foreingKeys)
+                    {
+                        configurationFile += "p." + foreingKey.Trim();
+                    }
+
+                }
+
                 configurationContent +=
                 "\t\t}\n" +
                 "\t}\n" +

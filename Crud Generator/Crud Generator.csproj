@@ -49,6 +49,8 @@
     <Compile Include="Commands\MyCommand.cs" />
     <Compile Include="Crud_GeneratorPackage.cs" />
     <Compile Include="Resources\AttributeInfo.cs" />
+    <Compile Include="Resources\Enum\ForeignType.cs" />
+    <Compile Include="Resources\ForeignKey.cs" />
     <Compile Include="source.extension.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -83,6 +85,8 @@
     <Reference Include="System" />
     <Reference Include="System.Design" />
     <Reference Include="System.ComponentModel.Composition" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Community.VisualStudio.VSCT" Version="16.0.29.6" PrivateAssets="all" />
