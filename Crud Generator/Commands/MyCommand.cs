@@ -197,7 +197,6 @@ namespace Crud_Generator
             #endregion
 
             #endregion
-#endregion
 
             #region Pegar caminhos locais
             string fullPath = activeDoc.FullName;
