@@ -121,7 +121,6 @@ namespace Crud_Generator
                 }
             };
 
-            /*
             foreach (Match match in matchesAtributos)
             {
                 string nomeAtributo = Interaction.InputBox("Digite o nome do atributo " + match.Groups[1].Value + ":", "Mapear atributos", "");
@@ -137,7 +136,6 @@ namespace Crud_Generator
                 };
                 listaAtributos.Add(atributo);
             };
-            */
             #endregion
 
             #region Primary key
@@ -198,11 +196,10 @@ namespace Crud_Generator
             string tableName = matchTableName.Groups[1].Value;
             #endregion
 
-            return;
-
             #endregion
+#endregion
 
-            #region Pegar dados locais
+            #region Pegar caminhos locais
             string fullPath = activeDoc.FullName;
             string diretorioChamada = Path.GetDirectoryName(fullPath);
             string diretorioRaiz = Directory.GetCurrentDirectory();
@@ -223,6 +220,83 @@ namespace Crud_Generator
 
             string controllerFolder = Path.Combine(diretorioRaiz, "Sisand.Vision.Api");
             string controllerControllersFolder = Path.Combine(controllerFolder, "Controllers");
+            #endregion
+
+            #region Criar arquivos
+
+            #region Criar Domain
+            string domainContent =
+            "using FluentValidation;\n" +
+            "using Sisand.Vision.Domain." + classFolder + ".Validators;\n" +
+            "namespace Sisand.Vision.Domain.SnapOn\n" +
+            "{\n" +
+            "\tpublic class " + className + " : Entity\n" +
+            "\t{\n" +
+            "\t\t#region Propriedades\n";
+
+            foreach (var atributo in listaAtributos)
+            {
+                string tipoAtributo = "";
+                if (atributo.Type == "CAMPO_BIGINT" || atributo.Type == "CAMPO_NOSSONUMERO")
+                {
+                    tipoAtributo = "long";
+                }
+                else if (atributo.Type == "CAMPO_INTEIRO" || atributo.Type == "CAMPO_SMALLINT" || atributo.Type == "CHAVE_INTEIRO" || atributo.Type == "CHAVE_SMALLINT")
+                {
+                    tipoAtributo = "int";
+                }
+                else if (atributo.Type == "CAMPO_BLOB")
+                {
+                    tipoAtributo = "byte[]";
+                }
+                else if (atributo.Type == "CAMPO_BOOLEAN")
+                {
+                    tipoAtributo = "bool";
+                }
+                else if (atributo.Type == "CAMPO_CPFCNPJ" || atributo.Type == "CAMPO_NOME" || atributo.Type == "CAMPO_NOME_PTBR" || atributo.Type == "CAMPO_OPERACAOCONTABIL" || atributo.Type == "CAMPO_RENAVAM" || atributo.Type == "CAMPO_UF" || atributo.Type == "CAMPO_VARCHAR1" || atributo.Type == "CAMPO_VARCHAR10" || atributo.Type == "CAMPO_VARCHAR100" || atributo.Type == "CAMPO_VARCHAR1000" || atributo.Type == "CAMPO_VARCHAR15" || atributo.Type == "CAMPO_VARCHAR150" || atributo.Type == "CAMPO_VARCHAR2" || atributo.Type == "CAMPO_VARCHAR20" || atributo.Type == "CAMPO_VARCHAR2000" || atributo.Type == "CAMPO_VARCHAR255" || atributo.Type == "CAMPO_VARCHAR3" || atributo.Type == "CAMPO_VARCHAR30" || atributo.Type == "CAMPO_VARCHAR3000" || atributo.Type == "CAMPO_VARCHAR355" || atributo.Type == "CAMPO_VARCHAR4" || atributo.Type == "CAMPO_VARCHAR50" || atributo.Type == "CAMPO_VARCHAR500" || atributo.Type == "CAMPO_VARCHAR5000" || atributo.Type == "CAMPO_VARCHAR6" || atributo.Type == "CAMPO_VARCHAR60")
+                {
+                    tipoAtributo = "string";
+                }
+                else if (atributo.Type == "CAMPO_DATA" || atributo.Type == "CAMPO_DATAHORA")
+                {
+                    tipoAtributo = "DateTime";
+                }
+                else if (atributo.Type == "CAMPO_DINHEIRO" || atributo.Type == "CAMPO_ITEMNOTA" || atributo.Type == "CAMPO_NUMERO" || atributo.Type == "CAMPO_NUMERO4D" || atributo.Type == "CAMPO_PERCENTUAL" || atributo.Type == "CAMPO_PERCENTUAL10D" || atributo.Type == "CAMPO_PESO")
+                {
+                    tipoAtributo = "decimal";
+                }
+                else if (atributo.Type == "CAMPO_HORA")
+                {
+                    tipoAtributo = "TimeSpan";
+                }
+                if (atributo.Nullable)
+                    tipoAtributo += "?";
+
+                domainContent += "\t\tpublic " + tipoAtributo + " " + atributo.Name + " { get; set; }\n";
+            }
+
+            domainContent += "\t\t#endregion\n" +
+            "\n" +
+            "\t\t#region Relacionamentos\nn { get; private set; }\n";
+
+            foreach (var relacionamento in listaAtributos.Where(predicate: p => p.ForeignKey != null))
+            {
+                domainContent += "\t\tpublic virtual " + relacionamento.ForeignKey.ReferencesRelationName + " " + relacionamento.ForeignKey.ReferencesRelationName + " { get; set; }\n";
+            }
+
+            domainContent += "\t\t#endregion\n" +
+            "\n" +
+            "\t\t#region Constructor\n" +
+            "\t\tpublic SnapOn() { }\n" +
+            "\t\t#endregion\n" +
+            "\n" +
+            "\t\t#region Métodos\n" +
+            "\t\tpublic override void IsValid() => new " + className + "Validator().ValidateAndThrow(this);\n" +
+            "\t\t#endregion\n" +
+            "\t}\n" +
+            "}";
+
+            File.WriteAllText(fullPath, domainContent);
             #endregion
 
             #region Criar IRepository
@@ -373,11 +447,19 @@ namespace Crud_Generator
                     else if (attribute.ForeignKey.ForeignType == Resources.Enum.ForeignType.UmPraMuitos)
                         configurationContent += "\t\t\t\tbuilder.HasMany(p => p." + attribute.ForeignKey.ReferencesRelationName + ") \n" +
                             "\t\t\t\t\t.WithMany(b => b." + className + ")\n";
-                    configurationContent += "\t\t\t\t\t.HasForeignKey(p =>";
                     var foreingKeys = attribute.ForeignKey.ReferencesSqlName.Split(',');
-                    foreach (var foreingKey in foreingKeys)
+                    if (foreingKeys.Count() > 1)
                     {
-                        configurationFile += "p." + foreingKey.Trim();
+                        configurationContent += "\t\t\t\t\t.HasForeignKey(p => new {";
+                        foreach (var foreingKey in foreingKeys)
+                        {
+                            configurationFile += " p." + foreingKey.Trim() + ",";
+                        }
+                        configurationContent += "});\n";
+                    }
+                    else
+                    {
+                        configurationContent += "\t\t\t\t\t.HasForeignKey(p => p." + foreingKeys[0] + ");\n";
                     }
 
                 }
@@ -603,6 +685,8 @@ namespace Crud_Generator
                     "}";
                 File.WriteAllText(controllerFile, controllerContent);
             }
+            #endregion
+
             #endregion
         }
 
