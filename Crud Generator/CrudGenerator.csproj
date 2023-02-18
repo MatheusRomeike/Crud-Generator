@@ -57,6 +57,12 @@
     </Compile>
     <Compile Include="Resources\Enum\ForeignType.cs" />
     <Compile Include="Resources\Classes\ForeignKey.cs" />
+    <Compile Include="Resources\Forms\DeParaRelacionamentosForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Resources\Forms\DeParaRelacionamentosForm.Designer.cs">
+      <DependentUpon>DeParaRelacionamentosForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Resources\Forms\InserirSQL.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -111,6 +117,9 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\Forms\DeParaAtributosForm.resx">
       <DependentUpon>DeParaAtributosForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Forms\DeParaRelacionamentosForm.resx">
+      <DependentUpon>DeParaRelacionamentosForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Resources\Forms\InserirSQL.resx">
       <DependentUpon>InserirSQL.cs</DependentUpon>
