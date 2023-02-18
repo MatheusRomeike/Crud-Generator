@@ -8,18 +8,13 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace Crud_Generator.Resources
+namespace Crud_Generator.Resources.Forms
 {
-    public partial class DeParaAtributosForm : Form
+    public partial class InserirSQL : Form
     {
-        public DeParaAtributosForm()
+        public InserirSQL()
         {
             InitializeComponent();
-        }
-
-        private void grid_CellContentClick(object sender, DataGridViewCellEventArgs e)
-        {
-
         }
 
         private void cancelar_Click(object sender, EventArgs e)
@@ -32,6 +27,11 @@ namespace Crud_Generator.Resources
         {
             DialogResult = DialogResult.OK;
             Close();
+        }
+
+        private void textBox1_TextChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }

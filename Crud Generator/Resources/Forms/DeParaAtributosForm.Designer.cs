@@ -38,6 +38,8 @@
             // 
             // grid
             // 
+            this.grid.AllowUserToAddRows = false;
+            this.grid.AllowUserToDeleteRows = false;
             this.grid.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.grid.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.NomeSQL,
@@ -66,6 +68,7 @@
             // confirmar
             // 
             this.confirmar.BackColor = System.Drawing.Color.Lime;
+            this.confirmar.DialogResult = System.Windows.Forms.DialogResult.OK;
             this.confirmar.ForeColor = System.Drawing.SystemColors.ControlText;
             this.confirmar.Location = new System.Drawing.Point(587, 344);
             this.confirmar.Margin = new System.Windows.Forms.Padding(0);
@@ -79,6 +82,7 @@
             // cancelar
             // 
             this.cancelar.BackColor = System.Drawing.Color.Red;
+            this.cancelar.DialogResult = System.Windows.Forms.DialogResult.Cancel;
             this.cancelar.Location = new System.Drawing.Point(497, 344);
             this.cancelar.Margin = new System.Windows.Forms.Padding(0);
             this.cancelar.Name = "cancelar";
@@ -98,7 +102,7 @@
             this.Controls.Add(this.grid);
             this.Name = "DeParaAtributosForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "DeParaAtributosForm";
+            this.Text = "De/Para Atributos";
             ((System.ComponentModel.ISupportInitialize)(this.grid)).EndInit();
             this.ResumeLayout(false);
 
@@ -107,8 +111,8 @@
         #endregion
         private System.Windows.Forms.Button confirmar;
         private System.Windows.Forms.Button cancelar;
+        public System.Windows.Forms.DataGridView grid;
         private System.Windows.Forms.DataGridViewTextBoxColumn NomeSQL;
         private System.Windows.Forms.DataGridViewTextBoxColumn NomeC;
-        public System.Windows.Forms.DataGridView grid;
     }
 }

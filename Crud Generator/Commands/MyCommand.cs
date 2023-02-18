@@ -1,9 +1,11 @@
 ﻿using Crud_Generator.Resources;
 using Crud_Generator.Resources.Enum;
+using Crud_Generator.Resources.Forms;
 using EnvDTE;
 using Microsoft;
 using Microsoft.VisualBasic;
 using Microsoft.VisualStudio.OLE.Interop;
+using Microsoft.VisualStudio.PlatformUI;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -37,128 +39,15 @@ namespace Crud_Generator
             }
             #endregion
 
-            #region Input
-            RichTextBox richTextBox = new RichTextBox();
-            richTextBox.Dock = DockStyle.Fill;
-            Form form = new Form();
-            form.Text = "Insira o script do modelo.";
-            form.Size = new Size(500, 500);
+            string sql = ObterSQL();
+            List<AttributeInfo> listaAtributos = DeParaAtributos(sql);
+            var primaryKey = GerarStringPrimaryKey(sql, listaAtributos);
 
 
-            Panel panel = new Panel();
-            panel.Dock = DockStyle.Bottom;
-            panel.Height = 25;
-            form.Controls.Add(panel);
-
-            Button btnConfirmar = new Button();
-            btnConfirmar.Text = "Confirmar";
-            btnConfirmar.DialogResult = DialogResult.OK;
-            btnConfirmar.Width = 75;
-            btnConfirmar.Left = form.Width - btnConfirmar.Width - 15;
-            panel.Controls.Add(btnConfirmar);
-
-            Button btnCancelar = new Button();
-            btnCancelar.Text = "Cancelar";
-            btnCancelar.Width = 75;
-            btnCancelar.Left = btnConfirmar.Left - 30 - btnCancelar.Width;
-            btnCancelar.DialogResult = DialogResult.Cancel;
-            panel.Controls.Add(btnCancelar);
-
-
-            form.Controls.Add(richTextBox);
-
-            string input = "";
-
-            if (form.ShowDialog() == DialogResult.OK)
-            {
-                input = richTextBox.Text;
-            }
-            else
-            {
-                return;
-            }
-            #endregion
-
-            Regex regexAtributos = new Regex(@"([A-Z_]+) +([A-Z_]+) *(not null)*");
-            MatchCollection matchesAtributos = regexAtributos.Matches(input);
-
-            List<AttributeInfo> listaAtributos = new();
-
-            DeParaAtributos(matchesAtributos);
-
-            foreach (Match match in matchesAtributos)
-            {
-
-
-                string nomeAtributo = Interaction.InputBox("Digite o nome do atributo " + match.Groups[1].Value + ":", "Mapear atributos", "");
-                if (string.IsNullOrEmpty(nomeAtributo))
-                    return;
-
-                AttributeInfo atributo = new AttributeInfo()
-                {
-                    Name = nomeAtributo,
-                    SqlName = match.Groups[1].Value,
-                    Type = match.Groups[2].Value,
-                    Nullable = match.Groups[3].Value != "not null"
-                };
-                listaAtributos.Add(atributo);
-            };
-
-            #region Primary key
-            Regex regexPrimaryKey = new Regex(@"primary key \(([A-Z_]+(?:, [A-Z_]+)*)\)");
-            Match matchPrimaryKey = regexPrimaryKey.Match(input);
-            var primaryKeys = matchPrimaryKey.Groups[1].Value.Split(',');
-            string primaryKeysString = "";
-            foreach (var primaryKey in primaryKeys)
-            {
-                AttributeInfo atributo = listaAtributos.FirstOrDefault(a => a.SqlName == primaryKey.Trim());
-                if (atributo != null)
-                {
-                    atributo.PrimaryKey = true;
-                    if (primaryKeysString == "")
-                    {
-                        primaryKeysString += "x." + atributo.Name;
-                    }
-                    else
-                    {
-                        primaryKeysString += ", x." + atributo.Name;
-                    }
-                }
-            }
-            #endregion
-
-            #region Foreign key
-            Regex regexForeignKey = new Regex(@"foreign key\s*\(\s*(.+?)\s*\)\s*references\s*([A-Z_]+)\s*\(\s*(.+?)\s*\)");
-            MatchCollection matchesForeignKey = regexForeignKey.Matches(input);
-
-            foreach (Match match in matchesForeignKey)
-            {
-                ForeignType cardinalidade = (ForeignType)Convert.ToInt32(Interaction.InputBox("Digite a cardinalidade de " + match.Groups[1].Value + " na tabela " + match.Groups[2].Value + " com chave estrangeira: \n" +
-                    "0 = Um pra um \n" +
-                    "1 = Um pra muitos \n" +
-                    "2 = Muitos pra um \n" +
-                    "3 = Muitos pra muitos\n", "Mapear cardinalidade", ""));
-
-                string nomeRelacionamento = Interaction.InputBox("Informe o nome da classe para relacionamento entre " + className + " e " + match.Groups[2].Value + ":", "Mapear relacionamento", "");
-                if (string.IsNullOrEmpty(nomeRelacionamento))
-                    return;
-
-                ForeignKey foreignKey = new ForeignKey()
-                {
-                    ReferencesRelationName = nomeRelacionamento,
-                    ReferencesSqlName = match.Groups[1].Value,
-                    ForeignType = cardinalidade,
-                };
-
-                AttributeInfo atributo = listaAtributos.FirstOrDefault(a => a.SqlName.Contains(match.Groups[1].Value));
-                if (atributo != null)
-                    atributo.ForeignKey = foreignKey;
-            }
-            #endregion
 
             #region Table name
             Regex regexTableName = new Regex(@"create table ([A-Z]*)");
-            Match matchTableName = regexTableName.Match(input);
+            Match matchTableName = regexTableName.Match(sql);
             string tableName = matchTableName.Groups[1].Value;
             #endregion
 
@@ -192,21 +81,138 @@ namespace Crud_Generator
             GerarIRepository(classFolder, className, domainClassFolder);
             GerarRepository(classFolder, className, dataRepositoriesFolder);
             GerarValidator(classFolder, className, domainClassFolder);
-            GerarConfiguration(classFolder, className, dataConfigurationFolder, tableName, primaryKeys, primaryKeysString, listaAtributos);
+            GerarConfiguration(classFolder, className, dataConfigurationFolder, tableName, primaryKey.Item1, primaryKey.Item2, listaAtributos);
             GerarIService(classFolder, className, applicationContractsFolder);
             GerarService(classFolder, className, applicationServicesFolder, classNameFormatada);
             GerarController(classFolder, className, controllerControllersFolder, classNameFormatada);
             */
         }
-        private void DeParaAtributos(MatchCollection matchesAtributos)
+        private (string[], string) GerarStringPrimaryKey(string sql, List<AttributeInfo> listaAtributos)
+        {
+            Regex regexPrimaryKey = new Regex(@"primary key \(([A-Z_]+(?:, [A-Z_]+)*)\)");
+            Match matchPrimaryKey = regexPrimaryKey.Match(sql);
+            var primaryKeys = matchPrimaryKey.Groups[1].Value.Split(',');
+            string primaryKeysString = "";
+            foreach (var primaryKey in primaryKeys)
+            {
+                AttributeInfo atributo = listaAtributos.FirstOrDefault(a => a.SqlName == primaryKey.Trim());
+                if (atributo != null)
+                {
+                    atributo.PrimaryKey = true;
+                    if (primaryKeysString == "")
+                    {
+                        primaryKeysString += "x." + atributo.Name;
+                    }
+                    else
+                    {
+                        primaryKeysString += ", x." + atributo.Name;
+                    }
+                }
+            }
+            return (primaryKeys, primaryKeysString);
+        }
+        private string ObterSQL()
+        {
+            InserirSQL formSql = new();
+            if (formSql.ShowDialog() == DialogResult.OK)
+                return formSql.textBox1.Text;
+            else
+                throw new Exception("Texto invalido e/ou vazio.");
+        }
+
+        #region Métodos grid chave estrangeira
+        private void MapearRelacionamentos(string sql, List<AttributeInfo> listaAtributos, string className)
+        {
+            Regex regexForeignKey = new Regex(@"foreign key\s*\(\s*(.+?)\s*\)\s*references\s*([A-Z_]+)\s*\(\s*(.+?)\s*\)");
+            MatchCollection matchesForeignKey = regexForeignKey.Matches(sql);
+
+            foreach (Match match in matchesForeignKey)
+            {
+                ForeignType cardinalidade = (ForeignType)Convert.ToInt32(Interaction.InputBox("Digite a cardinalidade de " + match.Groups[1].Value + " na tabela " + match.Groups[2].Value + " com chave estrangeira: \n" +
+                    "0 = Um pra um \n" +
+                    "1 = Um pra muitos \n" +
+                    "2 = Muitos pra um \n" +
+                    "3 = Muitos pra muitos\n", "Mapear cardinalidade", ""));
+
+                string nomeRelacionamento = Interaction.InputBox("Informe o nome da classe para relacionamento entre " + className + " e " + match.Groups[2].Value + ":", "Mapear relacionamento", "");
+                if (string.IsNullOrEmpty(nomeRelacionamento))
+                    return;
+
+                ForeignKey foreignKey = new ForeignKey()
+                {
+                    ReferencesRelationName = nomeRelacionamento,
+                    ReferencesSqlName = match.Groups[1].Value,
+                    ForeignType = cardinalidade,
+                };
+
+                AttributeInfo atributo = listaAtributos.FirstOrDefault(a => a.SqlName.Contains(match.Groups[1].Value));
+                if (atributo != null)
+                    atributo.ForeignKey = foreignKey;
+            }
+        }
+        #endregion
+
+        #region Métodos grid atributos
+        private List<AttributeInfo> DeParaAtributos(string sql)
+        {
+            Regex regexAtributos = new Regex(@"([A-Z_]+) +([A-Z_]+) *(not null)*");
+            MatchCollection matchesAtributos = regexAtributos.Matches(sql);
+
+            DeParaAtributosForm deParaAtributosForm = PreencherDataGrid(matchesAtributos);
+
+            if (deParaAtributosForm.ShowDialog() == DialogResult.OK)
+            {
+                Dictionary<string, string> deParaAtributos = CriarObjetoNomesAtributos(deParaAtributosForm);
+                return CriarListaAtributos(deParaAtributos, matchesAtributos);
+            }
+            else
+            {
+                throw new Exception("Erro ao mapear atributos");
+            }
+        }
+        private List<AttributeInfo> CriarListaAtributos(Dictionary<string, string> deParaAtributos, MatchCollection matchesAtributos)
+        {
+            List<AttributeInfo> listaAtributos = new();
+            foreach (Match match in matchesAtributos)
+            {
+
+                AttributeInfo atributo = new AttributeInfo()
+                {
+                    Name = deParaAtributos.FirstOrDefault(x => x.Key == match.Groups[1].Value).Value,
+                    SqlName = match.Groups[1].Value,
+                    Type = match.Groups[2].Value,
+                    Nullable = match.Groups[3].Value != "not null"
+                };
+                listaAtributos.Add(atributo);
+            };
+            return listaAtributos;
+        }
+        private Dictionary<string, string> CriarObjetoNomesAtributos(DeParaAtributosForm deParaAtributosForm)
+        {
+            Dictionary<string, string> deParaAtributos = new();
+            foreach (DataGridViewRow row in deParaAtributosForm.grid.Rows)
+            {
+                if (!string.IsNullOrEmpty(row.Cells[0].Value?.ToString()))
+                {
+                    string nomeSql = row.Cells["NomeSql"].Value.ToString();
+                    string nomeCSharp = row.Cells["NomeC"].Value.ToString();
+                    deParaAtributos.Add(nomeSql, nomeCSharp);
+                }
+            }
+            return deParaAtributos;
+        }
+        private DeParaAtributosForm PreencherDataGrid(MatchCollection matchesAtributos)
         {
             DeParaAtributosForm deParaAtributosForm = new();
             foreach (Match match in matchesAtributos)
             {
                 deParaAtributosForm.grid.Rows.Add(match.Groups[1].Value);
             };
-            deParaAtributosForm.Show();
+            return deParaAtributosForm;
         }
+        #endregion
+
+        #region Métodos de escrever arquivos
         private void GerarDomain(string classFolder, string className, string fullPath, List<AttributeInfo> listaAtributos)
         {
             string domainContent =
@@ -670,5 +676,6 @@ namespace Crud_Generator
                 File.WriteAllText(controllerFile, controllerContent);
             }
         }
+        #endregion
     }
 }
