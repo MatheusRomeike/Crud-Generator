@@ -5,6 +5,7 @@ using Microsoft;
 using Microsoft.VisualBasic;
 using Microsoft.VisualStudio.OLE.Interop;
 using System.Collections.Generic;
+using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -78,51 +79,17 @@ namespace Crud_Generator
             }
             #endregion
 
-            #region Atributos
             Regex regexAtributos = new Regex(@"([A-Z_]+) +([A-Z_]+) *(not null)*");
             MatchCollection matchesAtributos = regexAtributos.Matches(input);
 
-            List<AttributeInfo> listaAtributos = new List<AttributeInfo>
-            {
-                new AttributeInfo()
-                {
-                    Name = "MarcaId",
-                    SqlName = "IDMARCA",
-                    Type = "CHAVE_SMALLINT",
-                    Nullable = false
-                },
-                new AttributeInfo()
-                {
-                    Name = "TipoSegmento",
-                    SqlName = "TPSEGMENTO",
-                    Type = "CHAVE_SMALLINT",
-                    Nullable = false
-                },
-                new AttributeInfo()
-                {
-                    Name = "SequenciaConfiguracaoSnapOn",
-                    SqlName = "SQCONFIGURACAOSNAPON",
-                    Type = "CHAVE_SMALLINT",
-                    Nullable = false
-                },
-                new AttributeInfo()
-                {
-                    Name = "TipoItem",
-                    SqlName = "TPITEM",
-                    Type = "CAMPO_SMALLINT",
-                    Nullable = false
-                },
-                new AttributeInfo()
-                {
-                    Name = "CentroResultadoId",
-                    SqlName = "CDCENTRORESULTADO",
-                    Type = "CAMPO_SMALLINT",
-                    Nullable = true
-                }
-            };
+            List<AttributeInfo> listaAtributos = new();
+
+            DeParaAtributos(matchesAtributos);
 
             foreach (Match match in matchesAtributos)
             {
+
+
                 string nomeAtributo = Interaction.InputBox("Digite o nome do atributo " + match.Groups[1].Value + ":", "Mapear atributos", "");
                 if (string.IsNullOrEmpty(nomeAtributo))
                     return;
@@ -136,7 +103,6 @@ namespace Crud_Generator
                 };
                 listaAtributos.Add(atributo);
             };
-            #endregion
 
             #region Primary key
             Regex regexPrimaryKey = new Regex(@"primary key \(([A-Z_]+(?:, [A-Z_]+)*)\)");
@@ -171,7 +137,7 @@ namespace Crud_Generator
                     "0 = Um pra um \n" +
                     "1 = Um pra muitos \n" +
                     "2 = Muitos pra um \n" +
-                    "3 = Muitos pra muitos", "Mapear cardinalidade", ""));
+                    "3 = Muitos pra muitos\n", "Mapear cardinalidade", ""));
 
                 string nomeRelacionamento = Interaction.InputBox("Informe o nome da classe para relacionamento entre " + className + " e " + match.Groups[2].Value + ":", "Mapear relacionamento", "");
                 if (string.IsNullOrEmpty(nomeRelacionamento))
@@ -221,9 +187,28 @@ namespace Crud_Generator
             string controllerControllersFolder = Path.Combine(controllerFolder, "Controllers");
             #endregion
 
-            #region Criar arquivos
-
-            #region Criar Domain
+            /*
+            GerarDomain(classFolder, className, fullPath, listaAtributos);
+            GerarIRepository(classFolder, className, domainClassFolder);
+            GerarRepository(classFolder, className, dataRepositoriesFolder);
+            GerarValidator(classFolder, className, domainClassFolder);
+            GerarConfiguration(classFolder, className, dataConfigurationFolder, tableName, primaryKeys, primaryKeysString, listaAtributos);
+            GerarIService(classFolder, className, applicationContractsFolder);
+            GerarService(classFolder, className, applicationServicesFolder, classNameFormatada);
+            GerarController(classFolder, className, controllerControllersFolder, classNameFormatada);
+            */
+        }
+        private void DeParaAtributos(MatchCollection matchesAtributos)
+        {
+            DeParaAtributosForm deParaAtributosForm = new();
+            foreach (Match match in matchesAtributos)
+            {
+                deParaAtributosForm.grid.Rows.Add(match.Groups[1].Value);
+            };
+            deParaAtributosForm.Show();
+        }
+        private void GerarDomain(string classFolder, string className, string fullPath, List<AttributeInfo> listaAtributos)
+        {
             string domainContent =
             "using FluentValidation;\n" +
             "using Sisand.Vision.Domain." + classFolder + ".Validators;\n" +
@@ -276,7 +261,7 @@ namespace Crud_Generator
 
             domainContent += "\t\t#endregion\n" +
             "\n" +
-            "\t\t#region Relacionamentos\nn { get; private set; }\n";
+            "\t\t#region Relacionamentos\n";
 
             foreach (var relacionamento in listaAtributos.Where(predicate: p => p.ForeignKey != null))
             {
@@ -296,10 +281,9 @@ namespace Crud_Generator
             "}";
 
             File.WriteAllText(fullPath, domainContent);
-            #endregion
-
-            #region Criar IRepository
-
+        }
+        private void GerarIRepository(string classFolder, string className, string domainClassFolder)
+        {
             string repositoryInterfaceClassFolder = Path.Combine(domainClassFolder, "Contracts");
             Directory.CreateDirectory(repositoryInterfaceClassFolder);
 
@@ -319,9 +303,9 @@ namespace Crud_Generator
                     "}";
                 File.WriteAllText(repositoryInterfaceFile, repositoryInterfaceContent);
             }
-            #endregion
-
-            #region Criar Repository
+        }
+        private void GerarRepository(string classFolder, string className, string dataRepositoriesFolder)
+        {
             string repositoryClassFolder = Path.Combine(dataRepositoriesFolder, classFolder);
             Directory.CreateDirectory(repositoryClassFolder);
 
@@ -361,9 +345,9 @@ namespace Crud_Generator
                     "}\n";
                 File.WriteAllText(repositoryFile, repositoryContent);
             }
-            #endregion
-
-            #region Criar Validator
+        }
+        private void GerarValidator(string classFolder, string className, string domainClassFolder)
+        {
             string validatorsClassFolder = Path.Combine(domainClassFolder, "Validators");
             Directory.CreateDirectory(validatorsClassFolder);
 
@@ -385,9 +369,9 @@ namespace Crud_Generator
                     "}";
                 File.WriteAllText(validatorFile, validatorContent);
             }
-            #endregion
-
-            #region Criar Configuration
+        }
+        private void GerarConfiguration(string classFolder, string className, string dataConfigurationFolder, string tableName, string[] primaryKeys, string primaryKeysString, List<AttributeInfo> listaAtributos)
+        {
             string configurationFile = Path.Combine(dataConfigurationFolder, className + "Configuration.cs");
             if (!File.Exists(configurationFile))
             {
@@ -470,9 +454,10 @@ namespace Crud_Generator
 
                 File.WriteAllText(configurationFile, configurationContent);
             }
-            #endregion
 
-            #region Criar IService
+        }
+        private void GerarIService(string classFolder, string className, string applicationContractsFolder)
+        {
             string applicationContractsClassFolder = Path.Combine(applicationContractsFolder, classFolder);
             Directory.CreateDirectory(applicationContractsClassFolder);
 
@@ -509,9 +494,9 @@ namespace Crud_Generator
                     "}";
                 File.WriteAllText(serviceInterfaceFile, serviceInterfaceContent);
             }
-            #endregion
-
-            #region Criar Service
+        }
+        private void GerarService(string classFolder, string className, string applicationServicesFolder, string classNameFormatada)
+        {
             string applicationServicesClassFolder = Path.Combine(applicationServicesFolder, classFolder);
             Directory.CreateDirectory(applicationServicesClassFolder);
 
@@ -568,9 +553,9 @@ namespace Crud_Generator
                     "}";
                 File.WriteAllText(serviceFile, serviceContent);
             }
-            #endregion
-
-            #region Criar Controller
+        }
+        private void GerarController(string classFolder, string className, string controllerControllersFolder, string classNameFormatada)
+        {
             string controllerFile = Path.Combine(controllerControllersFolder, className + "Controller.cs");
             if (!File.Exists(controllerFile))
             {
@@ -684,10 +669,6 @@ namespace Crud_Generator
                     "}";
                 File.WriteAllText(controllerFile, controllerContent);
             }
-            #endregion
-
-            #endregion
         }
-
     }
 }
