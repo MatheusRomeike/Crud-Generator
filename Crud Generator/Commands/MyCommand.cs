@@ -65,19 +65,20 @@ namespace Crud_Generator
             string sql = ObterSQL();
             List<AttributeInfo> listaAtributos = DeParaAtributos(sql);
             var primaryKey = GerarStringPrimaryKey(sql, listaAtributos);
-            listaAtributos = MapearRelacionamentos(sql, listaAtributos, className);
+            List<ForeignKey> listaRelacionamentos = MapearRelacionamentos(sql);
             string tableName = TableName(sql);
 
-
-            GerarDomain(classFolder, className, fullPath, listaAtributos);
+            GerarDomain(classFolder, className, fullPath, listaAtributos, listaRelacionamentos);
             GerarIRepository(classFolder, className, domainClassFolder);
             GerarRepository(classFolder, className, dataRepositoriesFolder);
             GerarValidator(classFolder, className, domainClassFolder);
-            GerarConfiguration(classFolder, className, dataConfigurationFolder, tableName, primaryKey.listaChaves, primaryKey.chavesFormatadas, listaAtributos);
+            GerarConfiguration(classFolder, className, dataConfigurationFolder, tableName, primaryKey.listaChaves, primaryKey.chavesFormatadas, listaAtributos, listaRelacionamentos);
             GerarIService(classFolder, className, applicationContractsFolder);
             GerarService(classFolder, className, applicationServicesFolder, classNameFormatada);
             GerarController(classFolder, className, controllerControllersFolder, classNameFormatada);
 
+            AlertaFim alertaFim = new();
+            alertaFim.Show();
         }
 
         #region Métodos SQL
@@ -122,13 +123,13 @@ namespace Crud_Generator
         #endregion
 
         #region Métodos grid chave estrangeira
-        private List<AttributeInfo> MapearRelacionamentos(string sql, List<AttributeInfo> listaAtributos, string className)
+        private List<ForeignKey> MapearRelacionamentos(string sql)
         {
             Regex regexForeignKey = new Regex(@"foreign key\s*\(\s*(.+?)\s*\)\s*references\s*([A-Z_]+)\s*\(\s*(.+?)\s*\)");
             MatchCollection matchesForeignKey = regexForeignKey.Matches(sql);
             DeParaRelacionamentosForm deParaRelacionamentosForm = PreencherDataGridRelacionamentos(matchesForeignKey);
             if (deParaRelacionamentosForm.ShowDialog() == DialogResult.OK)
-                return CriarObjetoNomesAtributos(deParaRelacionamentosForm, listaAtributos);
+                return CriarObjetoNomesAtributos(deParaRelacionamentosForm);
             else
                 throw new Exception("Dados invalidos");
         }
@@ -141,8 +142,9 @@ namespace Crud_Generator
             };
             return deParaRelacionamentosForm;
         }
-        private List<AttributeInfo> CriarObjetoNomesAtributos(DeParaRelacionamentosForm deParaRelacionamentosForm, List<AttributeInfo> listaAtributos)
+        private List<ForeignKey> CriarObjetoNomesAtributos(DeParaRelacionamentosForm deParaRelacionamentosForm)
         {
+            List<ForeignKey> listaRelacionamentos = new();
             foreach (DataGridViewRow row in deParaRelacionamentosForm.grid.Rows)
             {
                 if (!string.IsNullOrEmpty(row.Cells[0].Value?.ToString()))
@@ -154,10 +156,10 @@ namespace Crud_Generator
                         ForeignType = (ForeignType)row.Cells["Cardinalidade"].RowIndex,
                     };
 
-                    listaAtributos.FirstOrDefault(a => foreignKey.ReferencesSqlName.Contains(a.SqlName)).ForeignKey = foreignKey;
+                    listaRelacionamentos.Add(foreignKey);
                 }
             }
-            return listaAtributos;
+            return listaRelacionamentos;
         }
         #endregion
 
@@ -221,11 +223,16 @@ namespace Crud_Generator
         #endregion
 
         #region Métodos de escrever arquivos
-        private void GerarDomain(string classFolder, string className, string fullPath, List<AttributeInfo> listaAtributos)
+        private void GerarDomain(string classFolder, string className, string fullPath, List<AttributeInfo> listaAtributos, List<ForeignKey> listaRelacionamentos)
         {
             string domainContent =
             "using FluentValidation;\n" +
-            "using Sisand.Vision.Domain." + classFolder + ".Validators;\n" +
+            "using Sisand.Vision.Domain." + classFolder + ".Validators;\n";
+            foreach (var relacionamento in listaRelacionamentos)
+            {
+                domainContent += "using Sisand.Vision.Domain." + relacionamento.ReferencesRelationName + ";\n";
+            }
+            domainContent +=
             "namespace Sisand.Vision.Domain.SnapOn\n" +
             "{\n" +
             "\tpublic class " + className + " : Entity\n" +
@@ -277,9 +284,9 @@ namespace Crud_Generator
             "\n" +
             "\t\t#region Relacionamentos\n";
 
-            foreach (var relacionamento in listaAtributos.Where(predicate: p => p.ForeignKey != null))
+            foreach (var relacionamento in listaRelacionamentos)
             {
-                domainContent += "\t\tpublic virtual " + relacionamento.ForeignKey.ReferencesRelationName + " " + relacionamento.ForeignKey.ReferencesRelationName + " { get; set; }\n";
+                domainContent += "\t\tpublic virtual " + relacionamento.ReferencesRelationName + " " + relacionamento.ReferencesRelationName + " { get; set; }\n";
             }
 
             domainContent += "\t\t#endregion\n" +
@@ -384,7 +391,7 @@ namespace Crud_Generator
                 File.WriteAllText(validatorFile, validatorContent);
             }
         }
-        private void GerarConfiguration(string classFolder, string className, string dataConfigurationFolder, string tableName, string[] primaryKeys, string primaryKeysString, List<AttributeInfo> listaAtributos)
+        private void GerarConfiguration(string classFolder, string className, string dataConfigurationFolder, string tableName, string[] primaryKeys, string primaryKeysString, List<AttributeInfo> listaAtributos, List<ForeignKey> listaRelacionamentos)
         {
             string configurationFile = Path.Combine(dataConfigurationFolder, className + "Configuration.cs");
             if (!File.Exists(configurationFile))
@@ -395,7 +402,12 @@ namespace Crud_Generator
                 "using Microsoft.EntityFrameworkCore;\n" +
                 "using Microsoft.EntityFrameworkCore.Metadata.Builders;\n" +
                 "using Microsoft.EntityFrameworkCore.Storage.ValueConversion;\n" +
-                "using Sisand.Vision.Domain." + classFolder + ";\n" + //falta mexer nisso
+                "using Sisand.Vision.Domain." + classFolder + ";\n";
+                foreach (var relacionamento in listaRelacionamentos)
+                {
+                    configurationContent += "using Sisand.Vision.Domain." + relacionamento.ReferencesRelationName + ";\n";
+                }
+                configurationContent +=
                 "\n" +
                 "namespace Sisand.Vision.Data.Configurations\n" +
                 "{\n" +
@@ -430,21 +442,21 @@ namespace Crud_Generator
                     configurationContent += ";\n";
                 }
 
-                foreach (var attribute in listaAtributos.Where(predicate: p => p.ForeignKey != null))
+                foreach (var foreing in listaRelacionamentos)
                 {
-                    if (attribute.ForeignKey.ForeignType == Resources.Enum.ForeignType.UmPraUm)
-                        configurationContent += "\t\t\t\tbuilder.HasOne(p => p." + attribute.ForeignKey.ReferencesRelationName + ") \n" +
+                    if (foreing.ForeignType == ForeignType.UmPraUm)
+                        configurationContent += "\t\t\t\tbuilder.HasOne(p => p." + foreing.ReferencesRelationName + ") \n" +
                             "\t\t\t\t\t.WithOne(b => b." + className + ")\n";
-                    else if (attribute.ForeignKey.ForeignType == Resources.Enum.ForeignType.UmPraMuitos)
-                        configurationContent += "\t\t\t\tbuilder.HasOne(p => p." + attribute.ForeignKey.ReferencesRelationName + ") \n" +
+                    else if (foreing.ForeignType == ForeignType.UmPraMuitos)
+                        configurationContent += "\t\t\t\tbuilder.HasOne(p => p." + foreing.ReferencesRelationName + ") \n" +
                             "\t\t\t\t\t.WithMany(b => b." + className + ")\n";
-                    else if (attribute.ForeignKey.ForeignType == Resources.Enum.ForeignType.MuitosPraUm)
-                        configurationContent += "\t\t\t\tbuilder.HasMany(p => p." + attribute.ForeignKey.ReferencesRelationName + ") \n" +
+                    else if (foreing.ForeignType == ForeignType.MuitosPraUm)
+                        configurationContent += "\t\t\t\tbuilder.HasMany(p => p." + foreing.ReferencesRelationName + ") \n" +
                             "\t\t\t\t\t.WithOne(b => b." + className + ")\n";
-                    else if (attribute.ForeignKey.ForeignType == Resources.Enum.ForeignType.UmPraMuitos)
-                        configurationContent += "\t\t\t\tbuilder.HasMany(p => p." + attribute.ForeignKey.ReferencesRelationName + ") \n" +
+                    else if (foreing.ForeignType == ForeignType.UmPraMuitos)
+                        configurationContent += "\t\t\t\tbuilder.HasMany(p => p." + foreing.ReferencesRelationName + ") \n" +
                             "\t\t\t\t\t.WithMany(b => b." + className + ")\n";
-                    var foreingKeys = attribute.ForeignKey.ReferencesSqlName.Split(',');
+                    var foreingKeys = foreing.ReferencesSqlName.Split(',');
                     if (foreingKeys.Count() > 1)
                     {
                         configurationContent += "\t\t\t\t\t.HasForeignKey(p => new {";
