@@ -56,6 +56,7 @@ namespace Crud_Generator
 
             string applicationFolder = Path.Combine(diretorioRaiz, "Sisand.Vision.Application");
             string applicationContractsFolder = Path.Combine(applicationFolder, "Contracts");
+            string applicationContractsServicesFolder = Path.Combine(applicationContractsFolder, "Contracts");
             string applicationServicesFolder = Path.Combine(applicationFolder, "Services");
 
             string controllerFolder = Path.Combine(diretorioRaiz, "Sisand.Vision.Api");
@@ -73,7 +74,7 @@ namespace Crud_Generator
             GerarRepository(classFolder, className, dataRepositoriesFolder);
             GerarValidator(classFolder, className, domainClassFolder);
             GerarConfiguration(classFolder, className, dataConfigurationFolder, tableName, primaryKey.listaChaves, primaryKey.chavesFormatadas, listaAtributos, listaRelacionamentos);
-            GerarIService(classFolder, className, applicationContractsFolder);
+            GerarIService(classFolder, className, applicationContractsServicesFolder);
             GerarService(classFolder, className, applicationServicesFolder, classNameFormatada);
             GerarController(classFolder, className, controllerControllersFolder, classNameFormatada);
 
@@ -396,7 +397,7 @@ namespace Crud_Generator
             string configurationFile = Path.Combine(dataConfigurationFolder, className + "Configuration.cs");
             if (!File.Exists(configurationFile))
             {
-                //File.Create(configurationFile).Dispose();
+                File.Create(configurationFile).Dispose();
 
                 string configurationContent =
                 "using Microsoft.EntityFrameworkCore;\n" +
@@ -445,30 +446,35 @@ namespace Crud_Generator
                 foreach (var foreing in listaRelacionamentos)
                 {
                     if (foreing.ForeignType == ForeignType.UmPraUm)
-                        configurationContent += "\t\t\t\tbuilder.HasOne(p => p." + foreing.ReferencesRelationName + ") \n" +
-                            "\t\t\t\t\t.WithOne(b => b." + className + ")\n";
+                        configurationContent += "\t\t\tbuilder.HasOne(p => p." + foreing.ReferencesRelationName + ") \n" +
+                            "\t\t\t\t.WithOne(b => b." + className + ")\n";
                     else if (foreing.ForeignType == ForeignType.UmPraMuitos)
-                        configurationContent += "\t\t\t\tbuilder.HasOne(p => p." + foreing.ReferencesRelationName + ") \n" +
-                            "\t\t\t\t\t.WithMany(b => b." + className + ")\n";
+                        configurationContent += "\t\t\tbuilder.HasOne(p => p." + foreing.ReferencesRelationName + ") \n" +
+                            "\t\t\t\t.WithMany(b => b." + className + ")\n";
                     else if (foreing.ForeignType == ForeignType.MuitosPraUm)
-                        configurationContent += "\t\t\t\tbuilder.HasMany(p => p." + foreing.ReferencesRelationName + ") \n" +
-                            "\t\t\t\t\t.WithOne(b => b." + className + ")\n";
+                        configurationContent += "\t\t\tbuilder.HasMany(p => p." + foreing.ReferencesRelationName + ") \n" +
+                            "\t\t\t\t.WithOne(b => b." + className + ")\n";
                     else if (foreing.ForeignType == ForeignType.UmPraMuitos)
-                        configurationContent += "\t\t\t\tbuilder.HasMany(p => p." + foreing.ReferencesRelationName + ") \n" +
-                            "\t\t\t\t\t.WithMany(b => b." + className + ")\n";
+                        configurationContent += "\t\t\tbuilder.HasMany(p => p." + foreing.ReferencesRelationName + ") \n" +
+                            "\t\t\t\t.WithMany(b => b." + className + ")\n";
                     var foreingKeys = foreing.ReferencesSqlName.Split(',');
                     if (foreingKeys.Count() > 1)
                     {
-                        configurationContent += "\t\t\t\t\t.HasForeignKey(p => new {";
+                        configurationContent += "\t\t\t\t.HasForeignKey(p => new {";
+                        int contador = 0;
                         foreach (var foreingKey in foreingKeys)
                         {
-                            configurationContent += " p." + foreingKey.Trim() + ",";
+                            if (contador == 0)
+                                configurationContent += " p." + listaAtributos.FirstOrDefault(x => x.SqlName == foreingKey.Trim()).Name;
+                            else
+                                configurationContent += ", p." + listaAtributos.FirstOrDefault(x => x.SqlName == foreingKey.Trim()).Name;
+                            contador++;
                         }
                         configurationContent += "});\n";
                     }
                     else
                     {
-                        configurationContent += "\t\t\t\t\t.HasForeignKey(p => p." + foreingKeys[0] + ");\n";
+                        configurationContent += "\t\t\t\t.HasForeignKey(p => p." + listaAtributos.FirstOrDefault(x => x.SqlName == foreingKeys[0].Trim()).Name + ");\n";
                     }
 
                 }
@@ -482,9 +488,9 @@ namespace Crud_Generator
             }
 
         }
-        private void GerarIService(string classFolder, string className, string applicationContractsFolder)
+        private void GerarIService(string classFolder, string className, string applicationContractsServicesFolder)
         {
-            string applicationContractsClassFolder = Path.Combine(applicationContractsFolder, classFolder);
+            string applicationContractsClassFolder = Path.Combine(applicationContractsServicesFolder, classFolder);
             Directory.CreateDirectory(applicationContractsClassFolder);
 
             string serviceInterfaceFile = Path.Combine(applicationContractsClassFolder, "I" + className + "Service.cs");
@@ -494,6 +500,7 @@ namespace Crud_Generator
 
                 string serviceInterfaceContent =
                     "using Sisand.Vision.Domain." + classFolder + ";\n" +
+                    "using System.Collections.Generic;\n" +
                     "namespace Sisand.Vision.Application.Contracts.Services." + classFolder + "\n" +
                     "{\n" +
                     "\tpublic interface I" + className + "Service\n" +
@@ -539,6 +546,7 @@ namespace Crud_Generator
                     "using Sisand.Vision.Data.Contracts;\n" +
                     "using Sisand.Vision.Domain." + classFolder + ".Contracts;\n" +
                     "using Sisand.Vision.Domain." + classFolder + ";\n" +
+                    "using System.Collections.Generic;\n" +
                     "namespace Sisand.Vision.Application.Services." + classFolder + "\n" +
                     "{\n" +
                     "\tpublic class " + className + "Service : I" + className + "Service\n" +
@@ -606,6 +614,7 @@ namespace Crud_Generator
                     "using Sisand.Vision.Domain." + classFolder + ";\n" +
                     "using System;\n" +
                     "using System.Threading.Tasks;\n" +
+                    "using System.Collections.Generic;\n" +
                     "\nnamespace Sisand.Vision.Api.Controllers\n" +
                     "{\n" +
                     "\t[Route(\"api/[controller]\")]\n" +
