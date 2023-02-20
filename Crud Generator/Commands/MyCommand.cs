@@ -74,7 +74,7 @@ namespace Crud_Generator
             GerarValidator(classFolder, className, domainClassFolder);
             GerarConfiguration(classFolder, className, dataConfigurationFolder, tableName, primaryKey.listaChaves, primaryKey.chavesFormatadas, listaAtributos, listaRelacionamentos);
             GerarIService(classFolder, className, applicationContractsFolder);
-            GerarService(classFolder, className, applicationServicesFolder, classNameFormatada);
+            GerarService(classFolder, className, applicationServicesFolder, classNameFormatada, primaryKey.chavesFormatadas);
             GerarController(classFolder, className, controllerControllersFolder, classNameFormatada);
 
             AlertaFim alertaFim = new();
@@ -415,7 +415,7 @@ namespace Crud_Generator
                 "\t{\n" +
                 "\t\tpublic void Configure(EntityTypeBuilder<" + className + "> builder)\n" +
                 "\t\t{\n" +
-                "\t\t\tbuilder.ToTable(" + tableName + ");\n" +
+                "\t\t\tbuilder.ToTable(\"" + tableName + "\");\n" +
                 "\n";
                 if (primaryKeys.Count() > 1)
                 {
@@ -499,16 +499,15 @@ namespace Crud_Generator
                     "\tpublic interface I" + className + "Service\n" +
                     "\t{\n" +
                     "\t\t/// <summary>\n" +
-                    "\t\t/// Método responsável por adicionar uma entidade do tipo " + className + "\n" +
+                    "\t\t/// Método responsável por obter uma lista de entidades do tipo " + className + "\n" +
                     "\t\t/// </summary>\n" +
-                    "\t\t/// <param name=\"entity\"></param>\n" +
-                    "\t\tbool Add(" + className + " entity);\n" +
+                    "\t\tList<" + className + "> GetList();\n" +
                     "\n" +
                     "\t\t/// <summary>\n" +
                     "\t\t/// Método responsável por atualizar uma entidade do tipo " + className + "\n" +
                     "\t\t/// </summary>\n" +
                     "\t\t/// <param name=\"entity\"></param>\n" +
-                    "\t\tbool Update(" + className + " entity);\n" +
+                    "\t\tbool Save(" + className + " entity);\n" +
                     "\n" +
                     "\t\t/// <summary>\n" +
                     "\t\t/// Método responsável por remover uma entidade do tipo " + className + "\n" +
@@ -516,12 +515,16 @@ namespace Crud_Generator
                     "\t\t/// <param name=\"entity\"></param>\n" +
                     "\t\tbool Delete(" + className + " entity);\n" +
                     "\n" +
+                    "\t\t/// <summary>\n" +
+                    "\t\t/// Método responsável por selecionar os campos a serem usados no crud da entidade do tipo " + className + "\n" +
+                    "\t\t/// </summary>\n" +
+                    "\t\tList<CrudDinamicoDto> GetCampos();\n" +
                     "\t}\n" +
                     "}";
                 File.WriteAllText(serviceInterfaceFile, serviceInterfaceContent);
             }
         }
-        private void GerarService(string classFolder, string className, string applicationServicesFolder, string classNameFormatada)
+        private void GerarService(string classFolder, string className, string applicationServicesFolder, string classNameFormatada, string primaryKeysString)
         {
             string applicationServicesClassFolder = Path.Combine(applicationServicesFolder, classFolder);
             Directory.CreateDirectory(applicationServicesClassFolder);
@@ -554,18 +557,19 @@ namespace Crud_Generator
                     "\t\t#endregion\n" +
                     "\n" +
                     "\t\t#region Metodos\n" +
-                    "\t\tpublic bool Add(" + className + " entity)\n" +
+                    "\t\tpublic List<" + classNameFormatada + "> GetList()\n" +
                     "\t\t{\n" +
-                    "\t\t\t_" + classNameFormatada + "Repository.Add(entity);\n" +
-                    "\t\t\t_unitOfWork.EFCommit();\n" +
-                    "\t\t\treturn true;\n" +
+                    "\t\t\ttreturn _" + classNameFormatada + "Repository.LoadAll();\n" +
                     "\t\t}\n" +
                     "\n" +
-                    "\t\tpublic bool Update(" + className + " entity)\n" +
+                    "\t\tpublic bool Save(" + className + " entity)\n" +
                     "\t\t{\n" +
+                    "\t\t\tvar entidade = _" + classNameFormatada + "Repository.LoadFirstBy(predicate: p => p.Id == entity.Id, disableTracking: true);\n" +
+                    "\t\t\tif (entidade == null)\n" +
+                    "\t\t\t_" + classNameFormatada + "Repository.Add(entity);\n" +
+                    "\t\t\telse\n" +
                     "\t\t\t_" + classNameFormatada + "Repository.Update(entity);\n" +
-                    "\t\t\t_unitOfWork.EFCommit();\n" +
-                    "\t\t\treturn true;\n" +
+                    "\t\t\ttreturn _unitOfWork.EFCommit();\n" +
                     "\t\t}\n" +
                     "\n" +
                     "\t\tpublic bool Delete(" + className + " entity)\n" +
@@ -573,6 +577,13 @@ namespace Crud_Generator
                     "\t\t\t_" + classNameFormatada + "Repository.Delete(entity);\n" +
                     "\t\t\t_unitOfWork.EFCommit();\n" +
                     "\t\t\treturn true;\n" +
+                    "\t\t}\n" +
+                    "\t\tpublic List<CrudDinamicoDto> GetCampos()\n" +
+                    "\t\t{\n" +
+                    "\t\t\treturn _" + classNameFormatada + "Repository.Teste(x => new " + className + "()" +
+                    "\t\t\t{" +
+                    "\t\t\tCampo = x.Campo" +
+                    "\t\t\t});\n" +
                     "\t\t}\n" +
                     "\t\t#endregion\n" +
                     "\t}\n" +
@@ -614,13 +625,61 @@ namespace Crud_Generator
                     "\t\t}\n" +
                     "\t\t#endregion\n" +
                     "\n" +
+                    "\t\t#region HttpGet\n" +
+                    "\t\t/// <summary>\n" +
+                    "\t\t/// Método responsável por obter uma lista da entidade do tipo " + className + "\n" +
+                    "\t\t/// </summary>\n" +
+                    "\t\t/// <returns></returns>\n" +
+                    "\t\t[HttpGet(\"GetList\")]\n" +
+                    "\t\t[ProducesResponseType(typeof(RetornoPadrao<List<" + className + ">>), 200)]\n" +
+                    "\t\t[ProducesResponseType(typeof(Exception), 400)]\n" +
+                    "\t\t[ProducesResponseType(500)]\n" +
+                    "\t\tpublic Task<IActionResult> GetList()\n" +
+                    "\t\t{\n" +
+                    "\t\t\treturn Task.Run(() =>\n" +
+                    "\t\t\t{\n" +
+                    "\t\t\t\ttry\n" +
+                    "\t\t\t\t{\n" +
+                    "\t\t\t\t\treturn Ok(new RetornoPadrao<List<" + className + ">>(EStatusRetorno.Ok, _" + classNameFormatada + "Service.GetList()));\n" +
+                    "\t\t\t\t}\n" +
+                    "\t\t\t\tcatch (Exception e)\n" +
+                    "\t\t\t\t{\n" +
+                    "\t\t\t\t\treturn ResolveErro(e);\n" +
+                    "\t\t\t\t}\n" +
+                    "\t\t\t});\n" +
+                    "\t\t}\n" +
+                    "\n" +
+                    "\t\t/// <summary>\n" +
+                    "\t\t/// Método responsável por obter os campos para o crud dinamico da entidade do tipo " + className + "\n" +
+                    "\t\t/// </summary>\n" +
+                    "\t\t/// <returns></returns>\n" +
+                    "\t\t[HttpGet(\"GetCampos\")]\n" +
+                    "\t\t[ProducesResponseType(typeof(RetornoPadrao<List<CrudDinamicoDto>>), 200)]\n" +
+                    "\t\t[ProducesResponseType(typeof(Exception), 400)]\n" +
+                    "\t\t[ProducesResponseType(500)]\n" +
+                    "\t\tpublic Task<IActionResult> GetCampos()\n" +
+                    "\t\t{\n" +
+                    "\t\t\treturn Task.Run(() =>\n" +
+                    "\t\t\t{\n" +
+                    "\t\t\t\ttry\n" +
+                    "\t\t\t\t{\n" +
+                    "\t\t\t\t\treturn Ok(new RetornoPadrao<List<CrudDinamicoDto>>(EStatusRetorno.Ok, _" + classNameFormatada + "Service.GetCampos()));\n" +
+                    "\t\t\t\t}\n" +
+                    "\t\t\t\tcatch (Exception e)\n" +
+                    "\t\t\t\t{\n" +
+                    "\t\t\t\t\treturn ResolveErro(e);\n" +
+                    "\t\t\t\t}\n" +
+                    "\t\t\t});\n" +
+                    "\t\t}\n" +
+                    "\t\t#endregion\n" +
+                    "\n" +
                     "\t\t#region HttpPost\n" +
                     "\t\t/// <summary>\n" +
-                    "\t\t/// Método responsável por adicionar uma entidade do tipo " + className + "\n" +
+                    "\t\t/// Método responsável por atualizar uma entidade do tipo " + className + "\n" +
                     "\t\t/// </summary>\n" +
                     "\t\t/// <param name=\"entity\"></param>\n" +
                     "\t\t/// <returns></returns>\n" +
-                    "\t\t[HttpPost(\"Add\")]\n" +
+                    "\t\t[HttpPost(\"Save\")]\n" +
                     "\t\t[ProducesResponseType(typeof(RetornoPadrao<bool>), 200)]\n" +
                     "\t\t[ProducesResponseType(typeof(Exception), 400)]\n" +
                     "\t\t[ProducesResponseType(500)]\n" +
@@ -630,7 +689,7 @@ namespace Crud_Generator
                     "\t\t\t{\n" +
                     "\t\t\t\ttry\n" +
                     "\t\t\t\t{\n" +
-                    "\t\t\t\t\treturn Ok(new RetornoPadrao<bool>(EStatusRetorno.Ok, _" + classNameFormatada + "Service.Add(entity)));\n" +
+                    "\t\t\t\t\treturn Ok(new RetornoPadrao<bool>(EStatusRetorno.Ok, _" + classNameFormatada + "Service.Save(entity)));\n" +
                     "\t\t\t\t}\n" +
                     "\t\t\t\tcatch (Exception e)\n" +
                     "\t\t\t\t{\n" +
@@ -638,35 +697,7 @@ namespace Crud_Generator
                     "\t\t\t\t}\n" +
                     "\t\t\t});\n" +
                     "\t\t}\n" +
-                    "\t\t#endregion\n" +
                     "\n" +
-                    "\t\t#region HttpPut\n" +
-                    "\t\t/// <summary>\n" +
-                    "\t\t/// Método responsável por atualizar uma entidade do tipo " + className + "\n" +
-                    "\t\t/// </summary>\n" +
-                    "\t\t/// <param name=\"entity\"></param>\n" +
-                    "\t\t/// <returns></returns>\n" +
-                    "\t\t[HttpPost(\"Update\")]\n" +
-                    "\t\t[ProducesResponseType(typeof(RetornoPadrao<bool>), 200)]\n" +
-                    "\t\t[ProducesResponseType(typeof(Exception), 400)]\n" +
-                    "\t\t[ProducesResponseType(500)]\n" +
-                    "\t\tpublic Task<IActionResult> Update([FromBody] " + className + " entity)\n" +
-                    "\t\t{\n" +
-                    "\t\t\treturn Task.Run(() =>\n" +
-                    "\t\t\t{\n" +
-                    "\t\t\t\ttry\n" +
-                    "\t\t\t\t{\n" +
-                    "\t\t\t\t\treturn Ok(new RetornoPadrao<bool>(EStatusRetorno.Ok, _" + classNameFormatada + "Service.Update(entity)));\n" +
-                    "\t\t\t\t}\n" +
-                    "\t\t\t\tcatch (Exception e)\n" +
-                    "\t\t\t\t{\n" +
-                    "\t\t\t\t\treturn ResolveErro(e);\n" +
-                    "\t\t\t\t}\n" +
-                    "\t\t\t});\n" +
-                    "\t\t}\n" +
-                    "\t\t#endregion\n" +
-                    "\n" +
-                    "\t\t#region HttpPost\n" +
                     "\t\t/// <summary>\n" +
                     "\t\t/// Método responsável por remover uma entidade do tipo " + className + "\n" +
                     "\t\t/// </summary>\n" +
