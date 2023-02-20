@@ -227,6 +227,7 @@ namespace Crud_Generator
         private void GerarDomain(string classFolder, string className, string fullPath, List<AttributeInfo> listaAtributos, List<ForeignKey> listaRelacionamentos)
         {
             string domainContent =
+            "using Sisand.Vision.Domain.Core.Entities;\n" +
             "using FluentValidation;\n" +
             "using Sisand.Vision.Domain." + classFolder + ".Validators;\n";
             foreach (var relacionamento in listaRelacionamentos)
@@ -234,7 +235,7 @@ namespace Crud_Generator
                 domainContent += "using Sisand.Vision.Domain." + relacionamento.ReferencesRelationName + ";\n";
             }
             domainContent +=
-            "namespace Sisand.Vision.Domain.SnapOn\n" +
+            "namespace Sisand.Vision.Domain." + className + "\n" +
             "{\n" +
             "\tpublic class " + className + " : Entity\n" +
             "\t{\n" +
@@ -293,7 +294,7 @@ namespace Crud_Generator
             domainContent += "\t\t#endregion\n" +
             "\n" +
             "\t\t#region Constructor\n" +
-            "\t\tpublic SnapOn() { }\n" +
+            "\t\tpublic " + className + "() { }\n" +
             "\t\t#endregion\n" +
             "\n" +
             "\t\t#region Métodos\n" +
@@ -508,24 +509,24 @@ namespace Crud_Generator
                     "\t\t/// <summary>\n" +
                     "\t\t/// Método responsável por obter uma lista de entidades do tipo " + className + "\n" +
                     "\t\t/// </summary>\n" +
-                    "\t\tList<" + className + "> List();\n" +
+                    "\t\tList<Domain." + className + "." + className + "> List();\n" +
                     "\n" +
                     "\t\t/// <summary>\n" +
                     "\t\t/// Método responsável por atualizar uma entidade do tipo " + className + "\n" +
                     "\t\t/// </summary>\n" +
                     "\t\t/// <param name=\"entity\"></param>\n" +
-                    "\t\tbool Save(" + className + " entity);\n" +
+                    "\t\tbool Save(Domain." + className + "." + className + " entity);\n" +
                     "\n" +
                     "\t\t/// <summary>\n" +
                     "\t\t/// Método responsável por remover uma entidade do tipo " + className + "\n" +
                     "\t\t/// </summary>\n" +
                     "\t\t/// <param name=\"entity\"></param>\n" +
-                    "\t\tbool Delete(" + className + " entity);\n" +
+                    "\t\tbool Delete(Domain." + className + "." + className + " entity);\n" +
                     "\n" +
                     "\t\t/// <summary>\n" +
                     "\t\t/// Método responsável por selecionar os campos a serem usados no crud da entidade do tipo " + className + "\n" +
                     "\t\t/// </summary>\n" +
-                    "\t\tList<CrudDinamicoDto> GetCampos();\n" +
+                    "\t\tList<Domain.Dtos.CrudDinamico.CrudDinamicoDto> GetCampos();\n" +
                     "\t}\n" +
                     "}";
                 File.WriteAllText(serviceInterfaceFile, serviceInterfaceContent);
@@ -565,30 +566,30 @@ namespace Crud_Generator
                     "\t\t#endregion\n" +
                     "\n" +
                     "\t\t#region Metodos\n" +
-                    "\t\tpublic List<" + classNameFormatada + "> List()\n" +
+                    "\t\tpublic List<Domain." + className + "." + className + "> List()\n" +
                     "\t\t{\n" +
-                    "\t\t\ttreturn _" + classNameFormatada + "Repository.LoadAll();\n" +
+                    "\t\t\treturn _" + classNameFormatada + "Repository.LoadAll();\n" +
                     "\t\t}\n" +
                     "\n" +
-                    "\t\tpublic bool Save(" + className + " entity)\n" +
+                    "\t\tpublic bool Save(Domain." + className + "." + className + " entity)\n" +
                     "\t\t{\n" +
                     "\t\t\tvar entidade = _" + classNameFormatada + "Repository.LoadFirstBy(predicate: p => p.Id == entity.Id, disableTracking: true);\n" +
                     "\t\t\tif (entidade == null)\n" +
                     "\t\t\t_" + classNameFormatada + "Repository.Add(entity);\n" +
                     "\t\t\telse\n" +
                     "\t\t\t_" + classNameFormatada + "Repository.Update(entity);\n" +
-                    "\t\t\ttreturn _unitOfWork.EFCommit();\n" +
+                    "\t\t\treturn _unitOfWork.EFCommit();\n" +
                     "\t\t}\n" +
                     "\n" +
-                    "\t\tpublic bool Delete(" + className + " entity)\n" +
+                    "\t\tpublic bool Delete(Domain." + className + "." + className + " entity)\n" +
                     "\t\t{\n" +
                     "\t\t\t_" + classNameFormatada + "Repository.Delete(entity);\n" +
                     "\t\t\t_unitOfWork.EFCommit();\n" +
                     "\t\t\treturn true;\n" +
                     "\t\t}\n" +
-                    "\t\tpublic List<CrudDinamicoDto> GetCampos()\n" +
+                    "\t\tpublic List<Domain.Dtos.CrudDinamico.CrudDinamicoDto> GetCampos()\n" +
                     "\t\t{\n" +
-                    "\t\t\treturn _" + classNameFormatada + "Repository.Teste(x => new " + className + "()" +
+                    "\t\t\treturn _" + classNameFormatada + "Repository.Teste(x => new Domain." + className + "." + className + "()" +
                     "\t\t\t{" +
                     "\t\t\tCampo = x.Campo" +
                     "\t\t\t});\n" +
@@ -611,6 +612,7 @@ namespace Crud_Generator
                     "using Microsoft.AspNetCore.Mvc;\n" +
                     "using Sisand.Vision.Api.Utils;\n" +
                     "using Sisand.Vision.Application.Contracts.Services." + classFolder + ";\n" +
+                    "using Sisand.Vision.Domain.Dtos.CrudDinamico;\n" +
                     "using Sisand.Vision.Domain." + classFolder + ";\n" +
                     "using System;\n" +
                     "using System.Threading.Tasks;\n" +
