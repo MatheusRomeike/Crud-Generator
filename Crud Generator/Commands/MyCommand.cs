@@ -501,7 +501,7 @@ namespace Crud_Generator
                     "\t\t/// <summary>\n" +
                     "\t\t/// Método responsável por obter uma lista de entidades do tipo " + className + "\n" +
                     "\t\t/// </summary>\n" +
-                    "\t\tList<" + className + "> GetList();\n" +
+                    "\t\tList<" + className + "> List();\n" +
                     "\n" +
                     "\t\t/// <summary>\n" +
                     "\t\t/// Método responsável por atualizar uma entidade do tipo " + className + "\n" +
@@ -557,7 +557,7 @@ namespace Crud_Generator
                     "\t\t#endregion\n" +
                     "\n" +
                     "\t\t#region Metodos\n" +
-                    "\t\tpublic List<" + classNameFormatada + "> GetList()\n" +
+                    "\t\tpublic List<" + classNameFormatada + "> List()\n" +
                     "\t\t{\n" +
                     "\t\t\ttreturn _" + classNameFormatada + "Repository.LoadAll();\n" +
                     "\t\t}\n" +
@@ -630,17 +630,17 @@ namespace Crud_Generator
                     "\t\t/// Método responsável por obter uma lista da entidade do tipo " + className + "\n" +
                     "\t\t/// </summary>\n" +
                     "\t\t/// <returns></returns>\n" +
-                    "\t\t[HttpGet(\"GetList\")]\n" +
+                    "\t\t[HttpGet(\"List\")]\n" +
                     "\t\t[ProducesResponseType(typeof(RetornoPadrao<List<" + className + ">>), 200)]\n" +
                     "\t\t[ProducesResponseType(typeof(Exception), 400)]\n" +
                     "\t\t[ProducesResponseType(500)]\n" +
-                    "\t\tpublic Task<IActionResult> GetList()\n" +
+                    "\t\tpublic Task<IActionResult> List()\n" +
                     "\t\t{\n" +
                     "\t\t\treturn Task.Run(() =>\n" +
                     "\t\t\t{\n" +
                     "\t\t\t\ttry\n" +
                     "\t\t\t\t{\n" +
-                    "\t\t\t\t\treturn Ok(new RetornoPadrao<List<" + className + ">>(EStatusRetorno.Ok, _" + classNameFormatada + "Service.GetList()));\n" +
+                    "\t\t\t\t\treturn Ok(new RetornoPadrao<List<" + className + ">>(EStatusRetorno.Ok, _" + classNameFormatada + "Service.List()));\n" +
                     "\t\t\t\t}\n" +
                     "\t\t\t\tcatch (Exception e)\n" +
                     "\t\t\t\t{\n" +
