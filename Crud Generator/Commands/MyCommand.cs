@@ -74,7 +74,7 @@ namespace Crud_Generator
             GerarValidator(classFolder, className, domainClassFolder);
             GerarConfiguration(classFolder, className, dataConfigurationFolder, tableName, primaryKey.listaChaves, primaryKey.chavesFormatadas, listaAtributos, listaRelacionamentos);
             GerarIService(classFolder, className, applicationContractsFolder);
-            GerarService(classFolder, className, applicationServicesFolder, classNameFormatada, primaryKey.chavesFormatadas);
+            GerarService(classFolder, className, applicationServicesFolder, classNameFormatada);
             GerarController(classFolder, className, controllerControllersFolder, classNameFormatada);
 
             AlertaFim alertaFim = new();
@@ -153,7 +153,7 @@ namespace Crud_Generator
                     {
                         ReferencesRelationName = row.Cells["Classe"].Value.ToString(),
                         ReferencesSqlName = row.Cells["Atributo"].Value.ToString(),
-                        ForeignType = (ForeignType)row.Cells["Cardinalidade"].RowIndex,
+                        ForeignType = (ForeignType)row.Cells["Cardinalidade"].ColumnIndex,
                     };
 
                     listaRelacionamentos.Add(foreignKey);
@@ -286,7 +286,7 @@ namespace Crud_Generator
 
             foreach (var relacionamento in listaRelacionamentos)
             {
-                domainContent += "\t\tpublic virtual " + relacionamento.ReferencesRelationName + " " + relacionamento.ReferencesRelationName + " { get; set; }\n";
+                domainContent += "\t\tpublic virtual " + relacionamento.ReferencesRelationName + "." + relacionamento.ReferencesRelationName + " " + relacionamento.ReferencesRelationName + " { get; set; }\n";
             }
 
             domainContent += "\t\t#endregion\n" +
@@ -396,7 +396,7 @@ namespace Crud_Generator
             string configurationFile = Path.Combine(dataConfigurationFolder, className + "Configuration.cs");
             if (!File.Exists(configurationFile))
             {
-                File.Create(configurationFile).Dispose();
+                //File.Create(configurationFile).Dispose();
 
                 string configurationContent =
                 "using Microsoft.EntityFrameworkCore;\n" +
@@ -417,7 +417,7 @@ namespace Crud_Generator
                 "\t\t{\n" +
                 "\t\t\tbuilder.ToTable(\"" + tableName + "\");\n" +
                 "\n";
-                if (primaryKeys.Count() > 1)
+                if (primaryKeys.Count() <= 1)
                 {
                     configurationContent += "\t\t\tbuilder.HasKey(x => " + primaryKeysString + "); \n";
                 }
@@ -462,7 +462,7 @@ namespace Crud_Generator
                         configurationContent += "\t\t\t\t\t.HasForeignKey(p => new {";
                         foreach (var foreingKey in foreingKeys)
                         {
-                            configurationFile += " p." + foreingKey.Trim() + ",";
+                            configurationContent += " p." + foreingKey.Trim() + ",";
                         }
                         configurationContent += "});\n";
                     }
@@ -524,7 +524,7 @@ namespace Crud_Generator
                 File.WriteAllText(serviceInterfaceFile, serviceInterfaceContent);
             }
         }
-        private void GerarService(string classFolder, string className, string applicationServicesFolder, string classNameFormatada, string primaryKeysString)
+        private void GerarService(string classFolder, string className, string applicationServicesFolder, string classNameFormatada)
         {
             string applicationServicesClassFolder = Path.Combine(applicationServicesFolder, classFolder);
             Directory.CreateDirectory(applicationServicesClassFolder);
