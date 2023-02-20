@@ -29,12 +29,12 @@
         private void InitializeComponent()
         {
             this.grid = new System.Windows.Forms.DataGridView();
+            this.cancelar = new System.Windows.Forms.Button();
+            this.confirmar = new System.Windows.Forms.Button();
             this.Atributo = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Tabela = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Cardinalidade = new System.Windows.Forms.DataGridViewComboBoxColumn();
             this.Classe = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.cancelar = new System.Windows.Forms.Button();
-            this.confirmar = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.grid)).BeginInit();
             this.SuspendLayout();
             // 
@@ -52,37 +52,6 @@
             this.grid.Name = "grid";
             this.grid.Size = new System.Drawing.Size(685, 309);
             this.grid.TabIndex = 0;
-            // 
-            // Atributo
-            // 
-            this.Atributo.HeaderText = "Atributo";
-            this.Atributo.Name = "Atributo";
-            this.Atributo.ReadOnly = true;
-            this.Atributo.Width = 160;
-            // 
-            // Tabela
-            // 
-            this.Tabela.HeaderText = "Tabela";
-            this.Tabela.Name = "Tabela";
-            this.Tabela.ReadOnly = true;
-            this.Tabela.Width = 160;
-            // 
-            // Cardinalidade
-            // 
-            this.Cardinalidade.HeaderText = "Cardinalidade";
-            this.Cardinalidade.Items.AddRange(new object[] {
-            "1-1",
-            "1-n",
-            "n-1",
-            "n-n"});
-            this.Cardinalidade.Name = "Cardinalidade";
-            this.Cardinalidade.Width = 160;
-            // 
-            // Classe
-            // 
-            this.Classe.HeaderText = "Classe";
-            this.Classe.Name = "Classe";
-            this.Classe.Width = 160;
             // 
             // cancelar
             // 
@@ -111,6 +80,37 @@
             this.confirmar.UseVisualStyleBackColor = false;
             this.confirmar.Click += new System.EventHandler(this.confirmar_Click);
             // 
+            // Atributo
+            // 
+            this.Atributo.HeaderText = "Atributo";
+            this.Atributo.Name = "Atributo";
+            this.Atributo.ReadOnly = true;
+            this.Atributo.Width = 160;
+            // 
+            // Tabela
+            // 
+            this.Tabela.HeaderText = "Tabela";
+            this.Tabela.Name = "Tabela";
+            this.Tabela.ReadOnly = true;
+            this.Tabela.Width = 160;
+            // 
+            // Cardinalidade
+            // 
+            this.Cardinalidade.HeaderText = "Cardinalidade (pai x filho)";
+            this.Cardinalidade.Items.AddRange(new object[] {
+            "1-1",
+            "1-n",
+            "n-1",
+            "n-n"});
+            this.Cardinalidade.Name = "Cardinalidade";
+            this.Cardinalidade.Width = 160;
+            // 
+            // Classe
+            // 
+            this.Classe.HeaderText = "Classe";
+            this.Classe.Name = "Classe";
+            this.Classe.Width = 160;
+            // 
             // DeParaRelacionamentosForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -129,10 +129,10 @@
         #endregion
         private System.Windows.Forms.Button cancelar;
         private System.Windows.Forms.Button confirmar;
+        public System.Windows.Forms.DataGridView grid;
         private System.Windows.Forms.DataGridViewTextBoxColumn Atributo;
         private System.Windows.Forms.DataGridViewTextBoxColumn Tabela;
         private System.Windows.Forms.DataGridViewComboBoxColumn Cardinalidade;
         private System.Windows.Forms.DataGridViewTextBoxColumn Classe;
-        public System.Windows.Forms.DataGridView grid;
     }
 }

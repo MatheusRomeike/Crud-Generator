@@ -10,12 +10,12 @@ namespace Crud_Generator.Resources.Enum
     public enum ForeignType
     {
         [Description("Um pra um")]
-        UmPraUm,
+        UmPraUm = 1,
         [Description("Um pra muitos")]
-        UmPraMuitos,
+        UmPraMuitos = 2,
         [Description("Muitos pra um")]
-        MuitosPraUm,
+        MuitosPraUm = 3,
         [Description("Muitos pra muitos")]
-        MuitosPraMuitos
+        MuitosPraMuitos = 4
     }
 }
